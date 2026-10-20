@@ -1,0 +1,59 @@
+{
+  "manifest_version": "1.0.0",
+  "models": {
+    "ocr": {
+      "name": "PaddleOCR-Korean-Mobile",
+      "type": "ocr",
+      "runtime": "onnx",
+      "url": "https://huggingface.co/local-models/paddleocr-korean-mobile-onnx/resolve/main/model.onnx",
+      "revision": "v2.0.0",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 15485760,
+      "license": "Apache-2.0",
+      "min_ram_mb": 512,
+      "min_vram_mb": 0,
+      "optional": false
+    },
+    "text_embedding": {
+      "name": "intfloat/multilingual-e5-small",
+      "type": "embedding",
+      "runtime": "onnx",
+      "url": "https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/model.onnx",
+      "revision": "e5_small_onnx_v1",
+      "sha256": "f4b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b866",
+      "size_bytes": 134217728,
+      "license": "MIT",
+      "dimension": 384,
+      "min_ram_mb": 1024,
+      "min_vram_mb": 0,
+      "optional": false
+    },
+    "visual_embedding": {
+      "name": "openai/clip-vit-base-patch32",
+      "type": "visual_embedding",
+      "runtime": "onnx",
+      "url": "https://huggingface.co/openai/clip-vit-base-patch32/resolve/main/model.onnx",
+      "revision": "clip_onnx_v1",
+      "sha256": "a1b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b877",
+      "size_bytes": 351272960,
+      "license": "MIT",
+      "dimension": 512,
+      "min_ram_mb": 2048,
+      "min_vram_mb": 0,
+      "optional": false
+    },
+    "generation": {
+      "name": "Qwen3-4B-Instruct-GGUF",
+      "type": "llm",
+      "runtime": "llama_cpp",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B-Instruct-GGUF/resolve/main/qwen3-4b-instruct.Q4_K_M.gguf",
+      "revision": "q4_k_m_v1",
+      "sha256": "c8b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b888",
+      "size_bytes": 2684354560,
+      "license": "Apache-2.0",
+      "min_ram_mb": 8192,
+      "min_vram_mb": 4096,
+      "optional": true
+    }
+  }
+}
