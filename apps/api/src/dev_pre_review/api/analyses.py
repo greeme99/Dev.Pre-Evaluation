@@ -107,16 +107,22 @@ def get_analysis_job(
 def cancel_analysis_job(
     job_id: UUID,
     db: DbDep,
+    request: Request,
 ) -> AnalysisJobResponse:
     job_repo = JobRepository(db.sessions)
     job = job_repo.get(job_id)
 
-    updated = job.request_cancel()
-    if updated.state is JobState.CANCELLING:
-        # For non-worker direct cancel, confirm immediately
-        updated = updated.confirm_cancel()
+    worker = getattr(request.app.state, "analysis_worker", None)
+    if worker is not None:
+        updated = worker.runner.cancel(job_id)
+        worker.notify()
+    else:
+        updated = job.request_cancel()
+        if updated.state is JobState.CANCELLING:
+            # Without a worker, confirm cancellation immediately.
+            updated = updated.confirm_cancel()
+        job_repo.update(updated)
 
-    job_repo.update(updated)
     return _to_response(updated)
 
 

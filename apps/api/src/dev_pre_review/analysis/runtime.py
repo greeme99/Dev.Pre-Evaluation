@@ -7,7 +7,7 @@ from dev_pre_review.analysis.exceptions import StepFailed
 from dev_pre_review.analysis.jobs import JobRunner
 from dev_pre_review.analysis.worker import JobWorker
 from dev_pre_review.domain.enums import AnalysisStep, RuleState
-from dev_pre_review.domain.models import AnalysisJob, DrawingArtifact
+from dev_pre_review.domain.models import AnalysisJob, DrawingArtifact, Finding
 from dev_pre_review.drawings.contracts import DrawingDocument
 from dev_pre_review.drawings.ports import get_default_registry
 from dev_pre_review.drawings.validation import DrawingValidator
@@ -59,7 +59,33 @@ def create_analysis_worker(db: Database, artifacts_dir: Path) -> JobWorker:
             documents[job.id] = document
         approved = rules.list_rules(project_id=job.project_id, state=RuleState.APPROVED)
         rule_findings = RuleEvaluator().evaluate(document, approved, job_id=job.id).findings
-        findings.add_many(rule_findings)
+        existing_signatures = {
+            finding_signature(finding) for finding in findings.list_for_job(job.id)
+        }
+        new_findings: list[Finding] = []
+        for finding in rule_findings:
+            signature = finding_signature(finding)
+            if signature not in existing_signatures:
+                new_findings.append(finding)
+                existing_signatures.add(signature)
+        if new_findings:
+            findings.add_many(new_findings)
+
+    def finding_signature(finding: Finding) -> tuple[object, ...]:
+        evidence = tuple(
+            (item.kind.value, item.ref_id, item.score, item.location) for item in finding.evidence
+        )
+        return (
+            finding.status.value,
+            finding.severity.value,
+            finding.confidence,
+            finding.finding_type,
+            finding.location,
+            finding.message,
+            finding.pixel_bbox,
+            finding.cad_bbox,
+            evidence,
+        )
 
     def skip_optional_capability(_job: AnalysisJob) -> None:
         # The persisted analysis_profile identifies this as rule-only execution.
