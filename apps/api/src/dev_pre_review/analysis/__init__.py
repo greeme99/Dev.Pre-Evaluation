@@ -1,1 +1,1 @@
-"""Analysis pipeline execution: jobs and worker thread."""
+"""Analysis package orchestrating pipelines, fusion, and suggestion generation."""
