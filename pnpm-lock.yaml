@@ -10,6 +10,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@dev-pre-review/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       react:
         specifier: ^19
         version: 19.3.1
@@ -62,6 +65,12 @@ importers:
       vitest:
         specifier: ^3
         version: 3.2.7(jsdom@26.1.0)
+
+  packages/contracts:
+    devDependencies:
+      typescript:
+        specifier: ~5.8
+        version: 5.8.3
 
 packages:
 

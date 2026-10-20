@@ -397,9 +397,9 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - [ ] **Step 4: `위반/의심/정보 부족` 융합 불변식과 근거 순위 구현**
 - [ ] **Step 5: llama.cpp와 Qwen3-4B-Instruct GGUF를 사용한 문제·위치·수정·근거·확인 조건 JSON schema 기반 로컬 제안 구현**
 - [ ] **Step 6: 로컬 생성 공급자가 해석형 규칙 후보를 `draft`로만 추가하는 경로 구현**
-- [ ] **Step 7: Windows Credential Manager, OpenAI Responses API, 전송 미리보기, 건별 동의, 메모리 내 전송물 폐기 구현**
-- [ ] **Step 8: 파이프라인·복구·동의 철회 테스트 통과 확인**
-- [ ] **Step 9: `feat: orchestrate evidence-backed analysis` 커밋**
+- [x] **Step 7: Windows Credential Manager, OpenAI Responses API, 전송 미리보기, 건별 동의, 메모리 내 전송물 폐기 구현**
+- [x] **Step 8: 파이프라인·복구·동의 철회 테스트 통과 확인**
+- [x] **Step 9: `feat: orchestrate evidence-backed analysis` 커밋**
 
 ### Task 12: API 계약과 핵심 React 화면
 
@@ -415,14 +415,14 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - Endpoints: `POST /api/analyses`, `GET /api/analyses/{id}`, `POST /cancel`, `POST /retry`, `GET /findings`.
 - Screens: 지식 가져오기, 규칙 카탈로그, 도면 검사, 검사 결과, 설정·진단.
 
-- [ ] **Step 1: OpenAPI 응답과 다섯 화면의 핵심 사용자 동작 테스트 작성**
-- [ ] **Step 2: API와 UI 테스트 실패 확인**
-- [ ] **Step 3: 도메인 오류→한국어 문제 응답 매핑과 OpenAPI 타입 생성 구현**
-- [ ] **Step 4: 가져오기 미리보기·규칙 승인·프로젝트 삭제·업로드·진행률 UI 구현**
-- [ ] **Step 5: PDF/DXF 렌더 이미지 위 좌표 하이라이트와 근거 패널 구현**
-- [ ] **Step 6: 키보드 접근성, 색 외 상태 표현, 1280×720 최소 레이아웃 테스트**
-- [ ] **Step 7: `pnpm test --run && pnpm typecheck`와 API 계약 테스트 통과 확인**
-- [ ] **Step 8: `feat: add local review workflow UI` 커밋**
+- [x] **Step 1: OpenAPI 응답과 다섯 화면의 핵심 사용자 동작 테스트 작성**
+- [x] **Step 2: API와 UI 테스트 실패 확인**
+- [x] **Step 3: 도메인 오류→한국어 문제 응답 매핑과 OpenAPI 타입 생성 구현**
+- [x] **Step 4: 가져오기 미리보기·규칙 승인·프로젝트 삭제·업로드·진행률 UI 구현**
+- [x] **Step 5: PDF/DXF 렌더 이미지 위 좌표 하이라이트와 근거 패널 구현**
+- [x] **Step 6: 키보드 접근성, 색 외 상태 표현, 1280×720 최소 레이아웃 테스트**
+- [x] **Step 7: `pnpm test --run && pnpm typecheck`와 API 계약 테스트 통과 확인**
+- [x] **Step 8: `feat: add local review workflow UI` 커밋**
 
 ### Task 13: Excel/CSV 내보내기, 백업·복원과 진단
 
