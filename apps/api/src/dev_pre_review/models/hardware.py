@@ -52,10 +52,12 @@ class HardwareDetector:
         )
 
     def _detect_system_ram_mb(self) -> int:
-        try:
-            # Linux / macOS
-            pages = os.sysconf("SC_PHYS_PAGES")
-            page_size = os.sysconf("SC_PAGE_SIZE")
-            return int((pages * page_size) // (1024 * 1024))
-        except Exception:
-            return 8192  # Default 8 GB fallback
+        sysconf = getattr(os, "sysconf", None)
+        if callable(sysconf):
+            try:
+                pages = int(sysconf("SC_PHYS_PAGES"))
+                page_size = int(sysconf("SC_PAGE_SIZE"))
+                return int((pages * page_size) // (1024 * 1024))
+            except Exception:  # noqa: S110
+                pass
+        return 8192  # Default 8 GB fallback
