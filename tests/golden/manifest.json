@@ -1,0 +1,63 @@
+{
+  "manifest_version": "1.0.0",
+  "dataset_name": "DevPreEvaluation_GoldenSet_v1",
+  "description": "Golden set benchmark with tuning and final partitions (TC-101, TC-102)",
+  "samples": [
+    {
+      "id": "GS-PDF-001",
+      "file_path": "tests/fixtures/pdf/vector.pdf",
+      "sha256": "021236c29c3dd4159e926d436437e7f2a9255f9047817ee9dc569963ca8f54a2",
+      "split": "tuning",
+      "expected_findings": [
+        {
+          "rule_code": "CL-001",
+          "status": "violation",
+          "severity": "high"
+        }
+      ],
+      "expected_evidence_queries": [
+        "배관 이격거리 최소 기준"
+      ]
+    },
+    {
+      "id": "GS-DXF-001",
+      "file_path": "tests/fixtures/dxf/electrical.dxf",
+      "sha256": "05ef88664f68d2230edb10ae57077f3c6763bec8222c31f3f07c79c89d963ecd",
+      "split": "tuning",
+      "expected_findings": [
+        {
+          "rule_code": "EL-002",
+          "status": "suspected",
+          "severity": "medium"
+        }
+      ],
+      "expected_evidence_queries": [
+        "분전반 접지 규격"
+      ]
+    },
+    {
+      "id": "GS-PDF-002",
+      "file_path": "tests/fixtures/pdf/scan-lowres.pdf",
+      "sha256": "be618646fd2e5ded83c817c8579185b4338b9178431ce4e11c595b4f67b19606",
+      "split": "final",
+      "expected_findings": [
+        {
+          "rule_code": "CV-003",
+          "status": "insufficient_information",
+          "severity": "low"
+        }
+      ],
+      "expected_evidence_queries": [
+        "토공 단면 기울기"
+      ]
+    },
+    {
+      "id": "GS-DXF-002",
+      "file_path": "tests/fixtures/dxf/mechanical.dxf",
+      "sha256": "9c134b8915e4bba4c1e8cfa878b10ad00f8c24c021672d1df044a2041b0ada1c",
+      "split": "final",
+      "expected_findings": [],
+      "expected_evidence_queries": []
+    }
+  ]
+}

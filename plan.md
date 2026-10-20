@@ -436,13 +436,13 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - Produces: `BackupService.create(passphrase, include_sources)`와 `restore(package, passphrase)`.
 - Produces: `DiagnosticBundle.create()`, 원문·키·절대 경로 제외.
 
-- [ ] **Step 1: 내보내기 열·한국어 인코딩·암호화 백업 round-trip·비밀정보 제거 테스트 작성**
-- [ ] **Step 2: 대상 테스트 실패 확인**
-- [ ] **Step 3: 고정 열 순서의 XLSX/UTF-8 BOM CSV 구현**
-- [ ] **Step 4: Argon2id 키 유도와 AES-256-GCM 인증 암호화, 버전 manifest를 가진 백업·복원 구현**
-- [ ] **Step 5: 버전·오류 코드·성능만 담는 진단 번들 구현**
-- [ ] **Step 6: export 전체 테스트 통과 확인**
-- [ ] **Step 7: `feat: export and protect review data` 커밋**
+- [x] **Step 1: 내보내기 열·한국어 인코딩·암호화 백업 round-trip·비밀정보 제거 테스트 작성**
+- [x] **Step 2: 대상 테스트 실패 확인**
+- [x] **Step 3: 고정 열 순서의 XLSX/UTF-8 BOM CSV 구현**
+- [x] **Step 4: Argon2id 키 유도와 AES-256-GCM 인증 암호화, 버전 manifest를 가진 백업·복원 구현**
+- [x] **Step 5: 버전·오류 코드·성능만 담는 진단 번들 구현**
+- [x] **Step 6: export 전체 테스트 통과 확인**
+- [x] **Step 7: `feat: export and protect review data` 커밋**
 
 ### Task 14: 골든셋 평가와 성능 예산
 
@@ -456,13 +456,13 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - Produces: `EvaluationRunner.run(manifest) -> EvaluationReport`.
 - 지표: 추출 성공률, precision, recall, Top-5 hit rate, p50/p95 단계별 시간.
 
-- [ ] **Step 1: 고정 혼동행렬과 검색 순위에 대한 지표 계산 테스트 작성**
-- [ ] **Step 2: 대상 테스트 실패 확인**
-- [ ] **Step 3: 튜닝/최종 평가 분리와 파일 해시 검증을 가진 manifest 구현**
-- [ ] **Step 4: JSON·Markdown 평가 보고서와 임계값 기반 종료 코드 구현**
-- [ ] **Step 5: 비식별 fixture 평가가 결정적으로 통과하는지 확인**
-- [ ] **Step 6: 8코어 CPU·RAM 16GB·GPU 없음 기준 PC에서 실제 골든셋의 네 가지 품질 기준과 PDF 20페이지/DXF 50MB 이하 도면의 3분 성능 기준 확인**
-- [ ] **Step 7: `test: add golden-set quality gates` 커밋**
+- [x] **Step 1: 고정 혼동행렬과 검색 순위에 대한 지표 계산 테스트 작성**
+- [x] **Step 2: 대상 테스트 실패 확인**
+- [x] **Step 3: 튜닝/최종 평가 분리와 파일 해시 검증을 가진 manifest 구현**
+- [x] **Step 4: JSON·Markdown 평가 보고서와 임계값 기반 종료 코드 구현**
+- [x] **Step 5: 비식별 fixture 평가가 결정적으로 통과하는지 확인**
+- [x] **Step 6: 8코어 CPU·RAM 16GB·GPU 없음 기준 PC에서 실제 골든셋의 네 가지 품질 기준과 PDF 20페이지/DXF 50MB 이하 도면의 3분 성능 기준 확인**
+- [x] **Step 7: `test: add golden-set quality gates` 커밋**
 
 ### Task 15: Windows 패키징, 설치·업데이트 검증과 출시 게이트
 
