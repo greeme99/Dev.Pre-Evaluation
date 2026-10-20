@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     from dev_pre_review.api.analyses import router as analyses_router
     from dev_pre_review.api.drawings import router as drawings_router
     from dev_pre_review.api.errors import register_error_handlers
+    from dev_pre_review.api.export import router as export_router
     from dev_pre_review.api.knowledge import router as knowledge_router
     from dev_pre_review.api.rules import router as rules_router
     from dev_pre_review.api.settings import router as settings_router
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(rules_router)
     app.include_router(analyses_router)
     app.include_router(settings_router)
+    app.include_router(export_router)
 
     return app
 

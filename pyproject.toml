@@ -15,6 +15,8 @@ dependencies = [
     "pymupdf>=2.0",
     "ezdxf>=1.4.5",
     "qdrant-client>=1.11.0",
+    "cryptography>=43.0.0",
+    "argon2-cffi>=23.1.0",
 ]
 
 [dependency-groups]
@@ -44,7 +46,7 @@ extend-exclude = ["apps/web", "node_modules"]
 select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"apps/api/tests/**" = ["S101"]
+"apps/api/tests/**" = ["S101", "S105", "S106"]
 
 [tool.mypy]
 python_version = "3.12"

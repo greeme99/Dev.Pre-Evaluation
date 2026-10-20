@@ -4,6 +4,8 @@ import type { ProfileResponse } from "@dev-pre-review/contracts";
 interface Props {
   initialProfile?: ProfileResponse;
   onConsentChange?: (granted: boolean) => Promise<void>;
+  onCreateBackup?: (passphrase: string) => Promise<void>;
+  onDownloadDiagnostics?: () => Promise<void>;
 }
 
 const defaultProfile: ProfileResponse = {
@@ -25,25 +27,31 @@ const defaultProfile: ProfileResponse = {
   },
 };
 
-export function SettingsView({ initialProfile = defaultProfile, onConsentChange }: Props) {
+export function SettingsView({
+  initialProfile = defaultProfile,
+  onConsentChange,
+  onCreateBackup,
+  onDownloadDiagnostics,
+}: Props) {
   const [profile] = useState<ProfileResponse>(initialProfile);
   const [consentGranted, setConsentGranted] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [backupPassphrase, setBackupPassphrase] = useState("");
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const handleToggleConsent = async () => {
     if (!consentGranted) {
-      // Need preview approval first
       setShowPreviewModal(true);
       return;
     }
-    // Revoking consent immediately
     setIsUpdating(true);
     try {
       if (onConsentChange) {
         await onConsentChange(false);
       }
       setConsentGranted(false);
+      setStatusMessage("외부 AI 전송 동의가 철회되었습니다.");
     } finally {
       setIsUpdating(false);
     }
@@ -57,14 +65,46 @@ export function SettingsView({ initialProfile = defaultProfile, onConsentChange 
         await onConsentChange(true);
       }
       setConsentGranted(true);
+      setStatusMessage("외부 AI 전송 동의가 설정되었습니다.");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleCreateBackup = async () => {
+    if (backupPassphrase.length < 8) return;
+    setStatusMessage("암호화 백업 패키지를 생성 중입니다...");
+    try {
+      if (onCreateBackup) {
+        await onCreateBackup(backupPassphrase);
+      }
+      setStatusMessage("암호화 백업 파일이 생성되었습니다.");
+    } catch {
+      setStatusMessage("백업 생성 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDownloadDiagnostics = async () => {
+    setStatusMessage("진단 번들을 수집 중입니다...");
+    try {
+      if (onDownloadDiagnostics) {
+        await onDownloadDiagnostics();
+      }
+      setStatusMessage("진단 번들이 다운로드되었습니다.");
+    } catch {
+      setStatusMessage("진단 번들 생성 중 오류가 발생했습니다.");
     }
   };
 
   return (
     <section className="settings-panel" aria-labelledby="settings-title">
       <h2 id="settings-title">시스템 환경 설정 및 하드웨어 진단</h2>
+
+      {statusMessage && (
+        <div className="status-banner" role="status" aria-live="polite">
+          {statusMessage}
+        </div>
+      )}
 
       {/* Hardware & Recommendation */}
       <div className="card settings-card">
@@ -122,6 +162,53 @@ export function SettingsView({ initialProfile = defaultProfile, onConsentChange 
           >
             {consentGranted ? "동의 철회하기" : "전송 동의 설정"}
           </button>
+        </div>
+      </div>
+
+      {/* Encrypted Backup & Diagnostics */}
+      <div className="card settings-card">
+        <h3>데이터 백업 및 시스템 진단 번들 (Backup & Diagnostics)</h3>
+        <p className="description">
+          Argon2id 키 유도 및 AES-256-GCM 인증 암호화로 전체 프로젝트·도면·규칙 데이터를 안전하게 백업하거나,
+          오류 문제 해결을 위한 개인정보 제거 진단 번들을 생성합니다.
+        </p>
+
+        <div className="grid-2col">
+          <div className="action-subcard">
+            <h4>암호화 백업 생성</h4>
+            <div className="input-group">
+              <label htmlFor="backup-passphrase">백업 암호 (최소 8자):</label>
+              <input
+                id="backup-passphrase"
+                type="password"
+                value={backupPassphrase}
+                onChange={(e) => setBackupPassphrase(e.target.value)}
+                placeholder="암호를 입력하세요"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={backupPassphrase.length < 8}
+              onClick={handleCreateBackup}
+              className="btn btn-primary"
+            >
+              🔒 백업 파일 다운로드
+            </button>
+          </div>
+
+          <div className="action-subcard">
+            <h4>시스템 진단 번들</h4>
+            <p className="subtext">
+              도면 원문, 파일 절대 경로, API 키는 완전히 마스킹되어 포함되지 않습니다.
+            </p>
+            <button
+              type="button"
+              onClick={handleDownloadDiagnostics}
+              className="btn btn-secondary"
+            >
+              📋 진단 번들 JSON 생성
+            </button>
+          </div>
         </div>
       </div>
 

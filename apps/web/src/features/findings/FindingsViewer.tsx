@@ -52,6 +52,25 @@ export function FindingsViewer({
             <option value="COMPLIANT">준수 항목만</option>
             <option value="INSUFFICIENT_INFORMATION">정보 부족만</option>
           </select>
+
+          {selectedFinding?.job_id && (
+            <div className="export-actions">
+              <a
+                href={`/api/analyses/${selectedFinding.job_id}/export.xlsx`}
+                download
+                className="btn btn-sm btn-secondary"
+              >
+                📥 Excel (.xlsx)
+              </a>
+              <a
+                href={`/api/analyses/${selectedFinding.job_id}/export.csv`}
+                download
+                className="btn btn-sm btn-secondary"
+              >
+                📥 CSV (.csv)
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
