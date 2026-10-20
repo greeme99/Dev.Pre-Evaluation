@@ -28,3 +28,11 @@ class ParserRegistry:
 
 # Global default registry instance
 default_registry = ParserRegistry()
+
+
+def get_default_registry() -> ParserRegistry:
+    from dev_pre_review.drawings.pdf_parser import PdfParser
+
+    if DrawingType.PDF not in default_registry._parsers:
+        default_registry.register(DrawingType.PDF, PdfParser())
+    return default_registry
