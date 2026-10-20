@@ -26,4 +26,32 @@ describe("SettingsView", () => {
     expect(handleConsentChange).toHaveBeenCalledWith(true);
     expect(await screen.findByText("허용됨 (Granted)")).toBeVisible();
   });
+
+  it("triggers backup creation and diagnostic bundle download", async () => {
+    const handleCreateBackup = vi.fn().mockResolvedValue(undefined);
+    const handleDownloadDiagnostics = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <SettingsView
+        onCreateBackup={handleCreateBackup}
+        onDownloadDiagnostics={handleDownloadDiagnostics}
+      />
+    );
+
+    // Passphrase validation
+    const backupBtn = screen.getByRole("button", { name: "🔒 백업 파일 다운로드" });
+    expect(backupBtn).toBeDisabled();
+
+    const passInput = screen.getByLabelText("백업 암호 (최소 8자):");
+    fireEvent.change(passInput, { target: { value: "password123" } });
+    expect(backupBtn).not.toBeDisabled();
+
+    fireEvent.click(backupBtn);
+    expect(handleCreateBackup).toHaveBeenCalledWith("password123");
+
+    // Diagnostics button
+    const diagBtn = screen.getByRole("button", { name: "📋 진단 번들 JSON 생성" });
+    fireEvent.click(diagBtn);
+    expect(handleDownloadDiagnostics).toHaveBeenCalled();
+  });
 });

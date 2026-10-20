@@ -70,6 +70,10 @@ describe("FindingsViewer", () => {
     // Suggestion box
     expect(screen.getByText("선삭 가공 마진을 0.5mm 증대할 것을 권장합니다.")).toBeVisible();
     expect(screen.getByText(/선삭 안전 마진 규정/)).toBeVisible();
+
+    // Export links
+    expect(screen.getByRole("link", { name: "📥 Excel (.xlsx)" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "📥 CSV (.csv)" })).toBeVisible();
   });
 
   it("filters findings by status", () => {
