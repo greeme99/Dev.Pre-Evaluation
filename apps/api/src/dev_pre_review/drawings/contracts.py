@@ -58,6 +58,6 @@ class DrawingDocument(BaseModel):
     file_name: str
     file_sha256: str
     page_count: int
-    unit: str = "mm"
+    unit: str | None = None
     regions: list[TextRegion] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
