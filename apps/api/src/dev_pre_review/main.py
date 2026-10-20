@@ -1,4 +1,6 @@
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
 
@@ -7,7 +9,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from dev_pre_review import __version__
+from dev_pre_review.analysis.runtime import create_analysis_worker
 from dev_pre_review.storage.database import Database
+from dev_pre_review.storage.paths import ensure_data_directories, get_artifacts_dir
 
 LOCAL_HOST = "127.0.0.1"
 LOCAL_PORT = 17841
@@ -39,7 +43,20 @@ class HealthResponse(BaseModel):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Dev Pre-Review", version=__version__)
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        db = get_database()
+        ensure_data_directories()
+        worker = create_analysis_worker(db, get_artifacts_dir())
+        worker.runner.resume_pending()
+        worker.start()
+        app.state.analysis_worker = worker
+        try:
+            yield
+        finally:
+            worker.stop()
+
+    app = FastAPI(title="Dev Pre-Review", version=__version__, lifespan=lifespan)
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
@@ -50,12 +67,14 @@ def create_app() -> FastAPI:
     from dev_pre_review.api.errors import register_error_handlers
     from dev_pre_review.api.export import router as export_router
     from dev_pre_review.api.knowledge import router as knowledge_router
+    from dev_pre_review.api.projects import router as projects_router
     from dev_pre_review.api.rules import router as rules_router
     from dev_pre_review.api.settings import router as settings_router
 
     register_error_handlers(app)
 
     app.include_router(drawings_router)
+    app.include_router(projects_router)
     app.include_router(knowledge_router)
     app.include_router(rules_router)
     app.include_router(analyses_router)

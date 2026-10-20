@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from dev_pre_review.domain.errors import DomainError
+from dev_pre_review.domain.models import DrawingArtifact
 
 # Default 100MB limit per project global constraints
 DEFAULT_MAX_BYTES = 100 * 1024 * 1024
@@ -109,3 +110,16 @@ class FileStore:
         finally:
             if tmp_path.exists():
                 tmp_path.unlink(missing_ok=True)
+
+    def resolve(self, drawing: DrawingArtifact) -> StoredFile:
+        """Resolve a persisted drawing using its content hash and original suffix."""
+        path = self.files_dir / drawing.sha256[:2] / drawing.sha256[2:4]
+        path = path / f"{drawing.sha256}{Path(drawing.source_name).suffix}"
+        if not path.is_file():
+            raise FileStoreError(f"Stored file for drawing {drawing.id} is missing")
+        return StoredFile(
+            sha256=drawing.sha256,
+            original_name=drawing.source_name,
+            path=path,
+            size_bytes=path.stat().st_size,
+        )

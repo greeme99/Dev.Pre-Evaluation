@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from dev_pre_review.domain.enums import JobState
@@ -69,6 +69,7 @@ def _to_response(job: AnalysisJob) -> AnalysisJobResponse:
 def create_analysis_job(
     req: CreateAnalysisRequest,
     db: DbDep,
+    request: Request,
 ) -> AnalysisJobResponse:
     project_repo = ProjectRepository(db.sessions)
     drawing_repo = DrawingRepository(db.sessions)
@@ -81,11 +82,14 @@ def create_analysis_job(
     job = AnalysisJob(
         project_id=req.project_id,
         drawing_id=req.drawing_id,
-        config_versions=req.config_versions,
+        config_versions={**req.config_versions, "analysis_profile": "rule_only"},
         created_at=utc_now(),
         updated_at=utc_now(),
     )
-    saved = job_repo.add(job)
+    worker = getattr(request.app.state, "analysis_worker", None)
+    saved = worker.runner.enqueue(job) if worker is not None else job_repo.add(job)
+    if worker is not None:
+        worker.notify()
     return _to_response(saved)
 
 
@@ -120,12 +124,17 @@ def cancel_analysis_job(
 def retry_analysis_job(
     job_id: UUID,
     db: DbDep,
+    request: Request,
 ) -> AnalysisJobResponse:
     job_repo = JobRepository(db.sessions)
     job = job_repo.get(job_id)
 
-    retried = job.retry()
-    job_repo.update(retried)
+    worker = getattr(request.app.state, "analysis_worker", None)
+    retried = worker.runner.retry(job_id) if worker is not None else job.retry()
+    if worker is None:
+        job_repo.update(retried)
+    else:
+        worker.notify()
     return _to_response(retried)
 
 
@@ -137,11 +146,14 @@ def get_analysis_findings(
     job_repo = JobRepository(db.sessions)
     finding_repo = FindingRepository(db.sessions)
 
-    job_repo.get(job_id)
+    job = job_repo.get(job_id)
     findings = finding_repo.list_for_job(job_id)
 
-    suggestion_provider = LocalSuggestionProvider()
-    suggestions = [suggestion_provider.suggest(f) for f in findings]
+    if job.config_versions.get("analysis_profile") == "rule_only":
+        suggestions = []
+    else:
+        suggestion_provider = LocalSuggestionProvider()
+        suggestions = [suggestion_provider.suggest(f) for f in findings]
 
     return FindingsResponse(
         job_id=job_id,
