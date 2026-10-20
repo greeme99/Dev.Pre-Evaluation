@@ -49,7 +49,8 @@ describe("FindingsViewer", () => {
     expect(screen.getAllByText("dimension")[0]).toBeVisible();
     expect(screen.getAllByText("페이지 1 / 외경")[0]).toBeVisible();
     expect(screen.getByText("95%")).toBeVisible();
-    expect(screen.getByLabelText("좌표 하이라이트 영역 x0:20, y0:30")).toBeVisible();
+    expect(screen.queryByLabelText(/좌표 하이라이트 영역/)).not.toBeInTheDocument();
+    expect(screen.getByText("[20, 30, 40, 50]")).toBeVisible();
     expect(screen.getByText("RULE-DIM-001")).toBeVisible();
     expect(screen.getByText("CASE-2025-08")).toBeVisible();
     expect(screen.getByText("가공 여유치수를 0.5mm 늘립니다.")).toBeVisible();
@@ -63,6 +64,8 @@ describe("FindingsViewer", () => {
     const sidebar = screen.getByLabelText("검토 결과 목록");
     expect(sidebar).not.toHaveTextContent("dimension");
     expect(sidebar).toHaveTextContent("surface_finish");
+    fireEvent.click(screen.getByText("surface_finish"));
+    expect(screen.getByText("[1, 2, 5, 8]")).toBeVisible();
 
     rerender(<FindingsViewer jobId="job-empty" findings={[]} suggestions={[]} />);
     expect(screen.getByText("저장된 검토 결과가 없습니다.")).toBeVisible();

@@ -38,8 +38,14 @@ const findingResult: FindingsResponse = {
 const callOrder = (mock: unknown) =>
   (mock as { mock: { invocationCallOrder: number[] } }).mock.invocationCallOrder[0]!;
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => { resolve = resolvePromise; });
+  return { promise, resolve };
+}
+
 describe("AnalysisWorkflow", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => vi.resetAllMocks());
   afterEach(() => vi.useRealTimers());
 
   it("creates, uploads, analyzes, polls, and returns persisted findings in order", async () => {
@@ -124,6 +130,36 @@ describe("AnalysisWorkflow", () => {
     expect(api.getAnalysis).toHaveBeenCalledTimes(1);
   });
 
+  it("does not let a pending completed poll overwrite a successful cancellation", async () => {
+    const pendingPoll = deferred<Awaited<ReturnType<typeof api.getAnalysis>>>();
+    vi.mocked(api.createProject).mockResolvedValue({ id: "project-race", name: "Axle", created_at: "now" });
+    vi.mocked(api.uploadDrawing).mockResolvedValue({ id: "drawing-race", project_id: "project-race", sha256: "hash", drawing_type: "pdf", source_name: "shaft.pdf" });
+    vi.mocked(api.createAnalysis).mockResolvedValue({ id: "job-race", project_id: "project-race", drawing_id: "drawing-race", state: "queued", completed_steps: [], config_versions: {} });
+    vi.mocked(api.getAnalysis).mockReturnValue(pendingPoll.promise);
+    vi.mocked(api.cancelAnalysis).mockResolvedValue({ id: "job-race", project_id: "project-race", drawing_id: "drawing-race", state: "cancelled", completed_steps: [], config_versions: {} });
+    const onComplete = vi.fn();
+
+    render(<AnalysisWorkflow onComplete={onComplete} pollIntervalMs={0} />);
+    fireEvent.change(screen.getByLabelText("프로젝트 이름:"), { target: { value: "Axle" } });
+    fireEvent.change(screen.getByLabelText("PDF 또는 DXF 도면:"), {
+      target: { files: [new File(["x"], "shaft.pdf", { type: "application/pdf" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "검사 시작" }));
+    await waitFor(() => expect(api.getAnalysis).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByRole("button", { name: "검사 중단" }));
+    expect(await screen.findByText("취소됨 (Cancelled)")).toBeVisible();
+    await act(async () => {
+      pendingPoll.resolve({ id: "job-race", project_id: "project-race", drawing_id: "drawing-race", state: "completed", completed_steps: ["validate", "extract", "rules", "export_ready"], config_versions: {} });
+      await pendingPoll.promise;
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("취소됨 (Cancelled)")).toBeVisible();
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(api.getFindings).not.toHaveBeenCalled();
+  });
+
   it("uses the real retry API and polls that retry without duplicate analysis requests", async () => {
     vi.mocked(api.createProject).mockResolvedValue({ id: "project-retry", name: "Axle", created_at: "now" });
     vi.mocked(api.uploadDrawing).mockResolvedValue({ id: "drawing-retry", project_id: "project-retry", sha256: "hash", drawing_type: "pdf", source_name: "shaft.pdf" });
@@ -146,6 +182,31 @@ describe("AnalysisWorkflow", () => {
     expect(api.retryAnalysis).toHaveBeenCalledTimes(1);
     expect(api.getAnalysis).toHaveBeenCalledTimes(1);
     expect(api.createAnalysis).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not offer retry for cancelled jobs and allows starting a new analysis", async () => {
+    vi.mocked(api.createProject).mockResolvedValue({ id: "project-new", name: "Axle", created_at: "now" });
+    vi.mocked(api.uploadDrawing).mockResolvedValue({ id: "drawing-new", project_id: "project-new", sha256: "hash", drawing_type: "pdf", source_name: "shaft.pdf" });
+    vi.mocked(api.createAnalysis)
+      .mockResolvedValueOnce({ id: "job-cancelled", project_id: "project-new", drawing_id: "drawing-new", state: "cancelled", completed_steps: [], config_versions: {} })
+      .mockResolvedValueOnce({ id: "job-new", project_id: "project-new", drawing_id: "drawing-new", state: "failed", completed_steps: [], failed_step: "validate", config_versions: {} });
+
+    render(<AnalysisWorkflow onComplete={vi.fn()} pollIntervalMs={0} />);
+    fireEvent.change(screen.getByLabelText("프로젝트 이름:"), { target: { value: "Axle" } });
+    fireEvent.change(screen.getByLabelText("PDF 또는 DXF 도면:"), {
+      target: { files: [new File(["x"], "shaft.pdf", { type: "application/pdf" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "검사 시작" }));
+
+    expect(await screen.findByText("취소됨 (Cancelled)")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
+    const start = screen.getByRole("button", { name: "검사 시작" });
+    expect(start).toBeEnabled();
+    fireEvent.click(start);
+
+    expect(await screen.findByText("검사 실패 (Failed)")).toBeVisible();
+    expect(screen.getByRole("button", { name: "다시 시도" })).toBeEnabled();
+    expect(api.createAnalysis).toHaveBeenCalledTimes(2);
   });
 
   it("passes an empty real findings response through unchanged", async () => {

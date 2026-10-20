@@ -230,7 +230,7 @@ export function AnalysisWorkflow({ onComplete, pollIntervalMs = POLL_INTERVAL_MS
             {(currentJob.state === "running" || currentJob.state === "queued") && (
               <button type="button" onClick={handleCancel} disabled={loading} className="btn btn-warning">검사 중단</button>
             )}
-            {(currentJob.state === "failed" || currentJob.state === "cancelled") && (
+            {currentJob.state === "failed" && (
               <button type="button" onClick={handleRetry} disabled={loading} className="btn btn-secondary">다시 시도</button>
             )}
           </div>

@@ -26,8 +26,6 @@ export function FindingsViewer({ jobId, findings, suggestions }: Props) {
     }
   };
 
-  const bbox = selectedFinding?.pixel_bbox ?? selectedFinding?.cad_bbox;
-
   return (
     <section className="findings-viewer-panel" aria-labelledby="findings-viewer-title">
       <div className="viewer-header">
@@ -76,21 +74,12 @@ export function FindingsViewer({ jobId, findings, suggestions }: Props) {
           ) : <p className="text-muted">저장된 검토 결과가 없습니다.</p>}
         </div>
 
-        <div className="drawing-canvas-area" aria-label="도면 시각화 영역">
-          <h3>도면 하이라이트</h3>
+        <div className="drawing-canvas-area" aria-label="도면 미리보기 영역">
+          <h3>도면 미리보기</h3>
           <div className="canvas-wrapper">
             <div className="drawing-viewport">
-              <div className="mock-canvas" role="img" aria-label="도면 렌더링 화면">
-                <span className="drawing-placeholder-text">도면 뷰어 (PDF/DXF)</span>
-                {bbox && (
-                  <div
-                    className="highlight-box"
-                    aria-label={`좌표 하이라이트 영역 x0:${bbox[0]}, y0:${bbox[1]}`}
-                    style={{ left: `${bbox[0]}%`, top: `${bbox[1]}%`, width: `${bbox[2] - bbox[0]}%`, height: `${bbox[3] - bbox[1]}%` }}
-                  >
-                    <span className="box-tag">{selectedFinding?.finding_type}</span>
-                  </div>
-                )}
+              <div className="mock-canvas" role="img" aria-label="실제 도면 미리보기 없음">
+                <span className="drawing-placeholder-text">실제 도면 미리보기는 제공되지 않습니다.</span>
               </div>
             </div>
           </div>
@@ -102,6 +91,12 @@ export function FindingsViewer({ jobId, findings, suggestions }: Props) {
               <h3>판정 상세 정보</h3>
               <div className="info-row"><span className="label">유형:</span><span>{selectedFinding.finding_type}</span></div>
               <div className="info-row"><span className="label">위치:</span><span>{selectedFinding.location}</span></div>
+              {selectedFinding.pixel_bbox && (
+                <div className="info-row"><span className="label">Pixel bbox:</span><span>[{selectedFinding.pixel_bbox.join(", ")}]</span></div>
+              )}
+              {selectedFinding.cad_bbox && (
+                <div className="info-row"><span className="label">CAD bbox:</span><span>[{selectedFinding.cad_bbox.join(", ")}]</span></div>
+              )}
               <div className="info-row"><span className="label">상태:</span><span>{getStatusBadge(selectedFinding.status)}</span></div>
               <div className="info-row">
                 <span className="label">심각도:</span>

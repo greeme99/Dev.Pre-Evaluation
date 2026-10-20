@@ -52,6 +52,15 @@ New test and report files did not have pre-existing versions to back up.
 - Polling is capped at 120 requests, one second apart by default (about two minutes). If the job does not reach a terminal state, the UI reports a timeout and leaves the real job ID visible.
 - This is component/integration test evidence, not browser E2E. Controller-owned live browser/API smoke remains separate.
 
+## Independent review follow-up
+
+- RED — FindingsViewer tests detected the percentage based overlay against a placeholder canvas and required pixel/CAD bbox values as text.
+- RED — the cancelled-job retry test failed while the retry button was available for `cancelled`; production retry is now limited to `failed`, while the start action remains available.
+- RED — a pending `getAnalysis` promise resolved to `completed` after cancel and overwrote the cancelled UI when the post-request poll token guard was temporarily removed. Restoring the guard made the real pending-promise race test pass.
+- The AppRouter integration test now exercises one complete mocked API-client path: project create, selected-file upload, queued → running → completed polling, findings rendering, and CSV href using the returned job ID.
+- Final review verification: frontend **18/18 tests**, contracts and web typecheck, ESLint, production build, and `git diff --check` all passed.
+- Backups for every edited existing file are under `.superpowers/sdd/release-readiness-remediation/backups-review/` with `.task2b2-review.bak` suffixes.
+
 ## Commit
 
-Pending commit of this subtask's changes.
+Initial implementation: `a8c6dc31f3cf691f9ffac303dd06b0deb0e847d9`. Review follow-up commit pending.
