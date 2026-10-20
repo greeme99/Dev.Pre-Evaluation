@@ -1,5 +1,6 @@
 """Build the production drawing analysis worker from persistent services."""
 
+from collections import Counter
 from pathlib import Path
 from uuid import UUID
 
@@ -59,15 +60,16 @@ def create_analysis_worker(db: Database, artifacts_dir: Path) -> JobWorker:
             documents[job.id] = document
         approved = rules.list_rules(project_id=job.project_id, state=RuleState.APPROVED)
         rule_findings = RuleEvaluator().evaluate(document, approved, job_id=job.id).findings
-        existing_signatures = {
+        existing_signatures = Counter(
             finding_signature(finding) for finding in findings.list_for_job(job.id)
-        }
+        )
+        evaluated_signatures: Counter[tuple[object, ...]] = Counter()
         new_findings: list[Finding] = []
         for finding in rule_findings:
             signature = finding_signature(finding)
-            if signature not in existing_signatures:
+            evaluated_signatures[signature] += 1
+            if evaluated_signatures[signature] > existing_signatures[signature]:
                 new_findings.append(finding)
-                existing_signatures.add(signature)
         if new_findings:
             findings.add_many(new_findings)
 

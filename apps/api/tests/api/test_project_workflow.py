@@ -4,7 +4,9 @@ import hashlib
 import threading
 import time
 from pathlib import Path
+from uuid import uuid4
 
+import ezdxf
 from fastapi.testclient import TestClient
 
 from dev_pre_review.analysis.runtime import create_analysis_worker
@@ -13,6 +15,8 @@ from dev_pre_review.domain.enums import (
     DrawingType,
     FindingStatus,
     JobState,
+    RuleOperator,
+    RuleState,
     Severity,
 )
 from dev_pre_review.domain.models import (
@@ -25,6 +29,8 @@ from dev_pre_review.domain.models import (
 from dev_pre_review.drawings.dxf_parser import DxfParser
 from dev_pre_review.drawings.validation import DrawingValidator
 from dev_pre_review.main import create_app, set_database
+from dev_pre_review.rules.catalog import RuleCatalog
+from dev_pre_review.rules.contracts import RuleCandidate
 from dev_pre_review.rules.engine import RuleEvaluator
 from dev_pre_review.storage.database import Database
 from dev_pre_review.storage.files import FileStore
@@ -184,6 +190,89 @@ def test_recovery_after_rule_findings_saved_does_not_duplicate_or_delete_finding
     recovered_findings = finding_repo.list_for_job(job.id)
     assert [finding.finding_type for finding in recovered_findings].count("quality_blocked") == 1
     assert [finding.message for finding in recovered_findings].count("Keep this finding") == 1
+    db.dispose()
+
+
+def test_same_signature_findings_from_distinct_rules_survive_replay(tmp_path: Path) -> None:
+    db = Database.from_path(tmp_path / "same-signature.db")
+    db.upgrade()
+    project = ProjectRepository(db.sessions).add(
+        ReviewProject(name="same signature", created_at=utc_now())
+    )
+    source_path = tmp_path / "two-fields.dxf"
+    dxf = ezdxf.new()
+    dxf.modelspace().add_text("length width: TBD")
+    dxf.saveas(source_path)
+    artifacts_dir = tmp_path / "artifacts"
+    stored = FileStore(artifacts_dir).save_bytes(source_path.read_bytes(), source_path.name)
+    drawing = DrawingRepository(db.sessions).add(
+        DrawingArtifact(
+            project_id=project.id,
+            sha256=stored.sha256,
+            drawing_type=DrawingType.DXF,
+            source_name=source_path.name,
+            parser_version="1.0.0",
+            created_at=utc_now(),
+        )
+    )
+    catalog = RuleCatalog(db.sessions)
+    for field in ("length", "width"):
+        candidate = catalog.add_candidate(
+            RuleCandidate(
+                project_id=project.id,
+                field=field,
+                operator=RuleOperator.MAX,
+                value="100",
+                unit="mm",
+                severity=Severity.MEDIUM,
+                source_case_ids=(uuid4(),),
+            )
+        )
+        catalog.transition(candidate.id, RuleState.APPROVED, expected_version=1)
+
+    job = JobRepository(db.sessions).add(
+        AnalysisJob(
+            project_id=project.id,
+            drawing_id=drawing.id,
+            state=JobState.RUNNING,
+            completed_steps=(AnalysisStep.VALIDATE, AnalysisStep.EXTRACT),
+            started_at=utc_now(),
+            created_at=utc_now(),
+            updated_at=utc_now(),
+        )
+    )
+    finding_repo = FindingRepository(db.sessions)
+    worker = create_analysis_worker(db, artifacts_dir)
+    worker.runner.resume_pending()
+    first_run = worker.runner.run_next()
+    assert first_run is not None
+    assert first_run.state is JobState.COMPLETED
+
+    first_findings = finding_repo.list_for_job(job.id)
+    assert len(first_findings) == 2
+    assert [finding.finding_type for finding in first_findings] == [
+        "missing_numeric_value",
+        "missing_numeric_value",
+    ]
+    assert first_findings[0].message == first_findings[1].message
+
+    completed = JobRepository(db.sessions).get(job.id)
+    replay = completed.model_copy(
+        update={
+            "state": JobState.QUEUED,
+            "completed_steps": (AnalysisStep.VALIDATE, AnalysisStep.EXTRACT),
+            "finished_at": None,
+            "failed_step": None,
+            "error_code": None,
+        }
+    )
+    JobRepository(db.sessions).update(replay)
+    restarted_worker = create_analysis_worker(db, artifacts_dir)
+    replay_result = restarted_worker.runner.run_next()
+
+    assert replay_result is not None
+    assert replay_result.state is JobState.COMPLETED
+    assert len(finding_repo.list_for_job(job.id)) == 2
     db.dispose()
 
 
