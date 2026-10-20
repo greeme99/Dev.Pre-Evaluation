@@ -49,10 +49,16 @@ jobs:
         run: |
           uv run pyinstaller packaging/windows/dev-pre-review.spec --noconfirm
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress
+          echo "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Compile Installer with Inno Setup
-        uses: Miniong-Lee/Inno-Setup-Action@v1.2.2
-        with:
-          path: packaging/windows/installer.iss
+        shell: pwsh
+        run: |
+          iscc packaging/windows/installer.iss
 
       - name: Generate SHA-256 Checksums
         shell: pwsh
@@ -65,3 +71,12 @@ jobs:
         with:
           name: DevPreReview-Windows-Setup
           path: dist/installer/*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/installer/*.exe
+            dist/installer/SHA256SUMS.txt
+          generate_release_notes: true
