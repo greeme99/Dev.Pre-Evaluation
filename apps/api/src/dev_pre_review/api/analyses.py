@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
-from dev_pre_review.domain.enums import JobState
+from dev_pre_review.domain.enums import AnalysisStep, JobState
 from dev_pre_review.domain.models import AnalysisJob, Finding, utc_now
 from dev_pre_review.main import get_database
 from dev_pre_review.models.generation import ImprovementSuggestion, LocalSuggestionProvider
@@ -37,9 +37,9 @@ class AnalysisJobResponse(BaseModel):
     id: UUID
     project_id: UUID
     drawing_id: UUID
-    state: str
-    completed_steps: list[str]
-    failed_step: str | None = None
+    state: JobState
+    completed_steps: list[AnalysisStep]
+    failed_step: AnalysisStep | None = None
     error_code: str | None = None
     config_versions: dict[str, str]
 
@@ -57,9 +57,9 @@ def _to_response(job: AnalysisJob) -> AnalysisJobResponse:
         id=job.id,
         project_id=job.project_id,
         drawing_id=job.drawing_id,
-        state=job.state.value,
-        completed_steps=[s.value for s in job.completed_steps],
-        failed_step=job.failed_step.value if job.failed_step else None,
+        state=job.state,
+        completed_steps=list(job.completed_steps),
+        failed_step=job.failed_step,
         error_code=job.error_code,
         config_versions=job.config_versions,
     )

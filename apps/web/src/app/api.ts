@@ -2,8 +2,11 @@ import type {
   AnalysisJobResponse,
   ConsentRequest,
   CreateAnalysisRequest,
+  CreateProjectRequest,
+  DrawingUploadResponse,
   FindingsResponse,
   ProfileResponse,
+  ProjectResponse,
   RuleDefinition,
 } from "@dev-pre-review/contracts";
 
@@ -21,12 +24,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  if (!(typeof FormData !== "undefined" && options.body instanceof FormData)) {
+    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
@@ -46,6 +51,21 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
+  // Projects and drawings
+  createProject: (body: CreateProjectRequest) =>
+    request<ProjectResponse>("/projects", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  uploadDrawing: (projectId: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<DrawingUploadResponse>(`/projects/${projectId}/drawings`, {
+      method: "POST",
+      body,
+    });
+  },
+
   // Analyses
   createAnalysis: (body: CreateAnalysisRequest) =>
     request<AnalysisJobResponse>("/analyses", {
