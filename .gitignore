@@ -1,1 +1,30 @@
 /attachments/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Local data / secrets (never commit real drawings)
+.env
+.env.*
+*.local
+tests/golden/**/*.pdf
+tests/golden/**/*.dxf
+tests/golden/**/*.xlsx
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
