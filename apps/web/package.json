@@ -12,6 +12,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@dev-pre-review/contracts": "workspace:*",
     "react": "^19",
     "react-dom": "^19"
   },
