@@ -9,7 +9,17 @@ from sqlalchemy.exc import IntegrityError
 from dev_pre_review.storage.database import Database
 from dev_pre_review.storage.schema import metadata
 
-EXPECTED_TABLES = {"projects", "drawing_artifacts", "analysis_jobs", "findings", "evidence"}
+EXPECTED_TABLES = {
+    "projects",
+    "drawing_artifacts",
+    "analysis_jobs",
+    "findings",
+    "evidence",
+    "knowledge_cases",
+    "rules",
+    "rule_history",
+    "import_records",
+}
 
 
 def test_upgrade_head_creates_expected_tables(database: Database) -> None:

@@ -120,3 +120,59 @@ evidence = Table(
     Column("score", Float, nullable=True),
     Column("location", String(255), nullable=True),
 )
+
+knowledge_cases = Table(
+    "knowledge_cases",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("project_id", Uuid, _fk("projects.id"), nullable=False, index=True),
+    Column("text", Text, nullable=False),
+    Column("table_data", JSON, nullable=False),
+    Column("image_refs", JSON, nullable=False),
+    Column("source_file_sha256", String(64), nullable=False),
+    Column("source_sheet", String(128), nullable=False),
+    Column("source_cell", String(32), nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+)
+
+rules = Table(
+    "rules",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("project_id", Uuid, _fk("projects.id"), nullable=False, index=True),
+    Column("state", String(16), nullable=False),
+    Column("drawing_types", JSON, nullable=False),
+    Column("field", String(64), nullable=False),
+    Column("operator", String(32), nullable=False),
+    Column("value", Text, nullable=False),
+    Column("unit", String(16), nullable=True),
+    Column("exceptions", JSON, nullable=False),
+    Column("severity", String(8), nullable=False),
+    Column("source_case_ids", JSON, nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+    Column("updated_at", UTCDateTime, nullable=False),
+)
+
+rule_history = Table(
+    "rule_history",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("rule_id", Uuid, _fk("rules.id"), nullable=False, index=True),
+    Column("from_state", String(16), nullable=False),
+    Column("to_state", String(16), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+)
+
+import_records = Table(
+    "import_records",
+    metadata,
+    Column("id", Uuid, primary_key=True),
+    Column("project_id", Uuid, _fk("projects.id"), nullable=False, index=True),
+    Column("file_sha256", String(64), nullable=False, index=True),
+    Column("idempotency_key", String(128), nullable=True, unique=True),
+    Column("sheet_name", String(128), nullable=False),
+    Column("case_count", Integer, nullable=False),
+    Column("created_at", UTCDateTime, nullable=False),
+)
