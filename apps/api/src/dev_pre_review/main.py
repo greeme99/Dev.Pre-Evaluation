@@ -45,9 +45,11 @@ def create_app() -> FastAPI:
     def health() -> HealthResponse:
         return HealthResponse(status="ok", version=__version__)
 
+    from dev_pre_review.api.drawings import router as drawings_router
     from dev_pre_review.api.knowledge import router as knowledge_router
     from dev_pre_review.api.rules import router as rules_router
 
+    app.include_router(drawings_router)
     app.include_router(knowledge_router)
     app.include_router(rules_router)
 
