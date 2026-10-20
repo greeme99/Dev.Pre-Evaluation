@@ -28,3 +28,5 @@ tests/golden/**/*.xlsx
 Thumbs.db
 .idea/
 .vscode/
+backups/
+*.bak

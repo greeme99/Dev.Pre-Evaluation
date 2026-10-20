@@ -20,6 +20,8 @@ from dev_pre_review.domain.models import AnalysisJob, RuleDefinition, utc_now
 from dev_pre_review.drawings.contracts import DrawingDocument, TextRegion
 from dev_pre_review.models.generation import LocalSuggestionProvider
 from dev_pre_review.rules.engine import RuleEvaluator
+from dev_pre_review.storage.database import Database
+from dev_pre_review.storage.repositories import JobRepository
 
 
 class InMemoryJobRepo:
@@ -157,3 +159,50 @@ def test_pipeline_stops_at_step_boundary_when_cancelling() -> None:
     # Execution stopped at step boundary
     assert len(cancelled_job.completed_steps) == 1
     assert cancelled_job.completed_steps[0] == AnalysisStep.VALIDATE
+
+
+def test_pipeline_completes_with_sqlite_job_repository(tmp_path) -> None:
+    database = Database.from_path(tmp_path / "pipeline.db")
+    database.upgrade()
+    job_id = uuid4()
+    project_id = uuid4()
+    drawing_id = uuid4()
+    from dev_pre_review.domain.models import DrawingArtifact, ReviewProject
+    from dev_pre_review.domain.enums import DrawingType
+    from dev_pre_review.storage.repositories import DrawingRepository, ProjectRepository
+
+    ProjectRepository(database.sessions).add(
+        ReviewProject(id=project_id, name="SQLite pipeline", created_at=utc_now())
+    )
+    DrawingRepository(database.sessions).add(
+        DrawingArtifact(
+            id=drawing_id,
+            project_id=project_id,
+            sha256="a" * 64,
+            drawing_type=DrawingType.PDF,
+            source_name="pipeline.pdf",
+            parser_version="test",
+            created_at=utc_now(),
+        )
+    )
+    job_repo = JobRepository(database.sessions)
+    job_repo.add(make_test_job(job_id, project_id, drawing_id))
+    document = DrawingDocument(
+        drawing_id=drawing_id,
+        drawing_type=DrawingType.PDF,
+        file_name="pipeline.pdf",
+        file_sha256="a" * 64,
+        page_count=1,
+        regions=[],
+    )
+
+    result = AnalysisPipeline(
+        job_repo=job_repo,
+        rule_evaluator=RuleEvaluator(),
+        fusion_engine=FindingFusion(),
+        suggestion_provider=LocalSuggestionProvider(),
+    ).run(job_id, PipelineContext(document=document))
+
+    assert result.state is JobState.COMPLETED
+    assert len(job_repo.get(job_id).completed_steps) == 6
+    database.dispose()

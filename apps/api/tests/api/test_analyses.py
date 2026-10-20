@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
 from dev_pre_review.domain.enums import DrawingType, JobState
 from dev_pre_review.domain.models import AnalysisJob, DrawingArtifact, ReviewProject, utc_now
@@ -14,6 +15,7 @@ from dev_pre_review.storage.repositories import (
     JobRepository,
     ProjectRepository,
 )
+from dev_pre_review.storage.schema import analysis_jobs
 
 
 @pytest.fixture
@@ -143,3 +145,30 @@ def test_not_found_returns_rfc7807_problem_details(api_client) -> None:
     assert "title" in data
     assert "detail" in data
     assert "NotFound" in data["title"] or "찾을 수 없습니다" in data["detail"]
+
+
+def test_create_analysis_rejects_drawing_from_another_project(api_client) -> None:
+    client, db = api_client
+    project_repo = ProjectRepository(db.sessions)
+    drawing_repo = DrawingRepository(db.sessions)
+    requested_project = project_repo.add(ReviewProject(name="Requested", created_at=utc_now()))
+    drawing_project = project_repo.add(ReviewProject(name="Drawing owner", created_at=utc_now()))
+    drawing = drawing_repo.add(
+        DrawingArtifact(
+            project_id=drawing_project.id,
+            sha256="c" * 64,
+            drawing_type=DrawingType.PDF,
+            source_name="owned-elsewhere.pdf",
+            parser_version="test",
+            created_at=utc_now(),
+        )
+    )
+
+    response = client.post(
+        "/api/analyses",
+        json={"project_id": str(requested_project.id), "drawing_id": str(drawing.id)},
+    )
+
+    assert response.status_code == 422
+    with db.sessions() as session:
+        assert session.execute(select(func.count()).select_from(analysis_jobs)).scalar_one() == 0

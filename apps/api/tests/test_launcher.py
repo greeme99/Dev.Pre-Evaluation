@@ -10,6 +10,7 @@ from dev_pre_review.launcher import (
     check_port_available,
     verify_instance_status,
 )
+from dev_pre_review.main import get_database, set_database
 from dev_pre_review.storage.paths import (
     ensure_data_directories,
     get_app_data_dir,
@@ -28,6 +29,28 @@ def test_app_data_dir_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert get_database_path() == custom_dir / "dev_pre_review.db"
     assert get_artifacts_dir() == custom_dir / "artifacts"
     assert get_logs_dir() == custom_dir / "logs"
+
+
+def test_database_path_uses_shared_data_dir_and_explicit_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data_dir = tmp_path / "shared-data"
+    monkeypatch.setenv("DEV_PRE_REVIEW_DATA_DIR", str(data_dir))
+    monkeypatch.delenv("DEV_PRE_REVIEW_DB_PATH", raising=False)
+
+    assert get_database_path() == data_dir / "dev_pre_review.db"
+    database = get_database()
+    assert database.engine.url.database == str((data_dir / "dev_pre_review.db").resolve())
+    database.dispose()
+    set_database(None)
+
+    explicit_path = tmp_path / "operator-selected.db"
+    monkeypatch.setenv("DEV_PRE_REVIEW_DB_PATH", str(explicit_path))
+    assert get_database_path() == explicit_path.resolve()
+    overridden_database = get_database()
+    assert overridden_database.engine.url.database == str(explicit_path.resolve())
+    overridden_database.dispose()
+    set_database(None)
 
 
 def test_ensure_data_directories(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

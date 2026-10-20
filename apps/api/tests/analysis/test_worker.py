@@ -120,6 +120,26 @@ def test_cancel_running_job_stops_at_step_boundary(
     assert steps_of(executed, job.id) == [AnalysisStep.VALIDATE, AnalysisStep.EXTRACT]
 
 
+def test_cancel_during_final_handler_wins_over_completion(
+    repos: Repos, seed: Seed, executed: Executed
+) -> None:
+    handlers = recording_handlers(executed)
+    runner = JobRunner(repos.jobs, handlers)  # type: ignore[arg-type]
+
+    def cancel_during_export(job: AnalysisJob) -> None:
+        executed.append((job.id, AnalysisStep.EXPORT_READY))
+        runner.cancel(job.id)
+
+    handlers[AnalysisStep.EXPORT_READY] = cancel_during_export
+    job = runner.enqueue(seed.new_job())
+
+    result = runner.run_next()
+
+    assert result is not None
+    assert result.state is JobState.CANCELLED
+    assert result.completed_steps[-1] is AnalysisStep.EXPORT_READY
+
+
 def test_cancel_queued_job_is_never_executed(
     runner: JobRunner, seed: Seed, executed: Executed
 ) -> None:

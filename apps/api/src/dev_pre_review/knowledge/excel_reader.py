@@ -4,7 +4,7 @@ import hashlib
 import zipfile
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import openpyxl
 from openpyxl.utils import get_column_letter
@@ -31,7 +31,13 @@ class InvalidExcelError(ExcelReaderError):
 
 
 class ExcelReader:
-    def preview(self, path: Path) -> ImportPreview:
+    def preview(
+        self,
+        path: Path,
+        *,
+        preview_id: UUID | None = None,
+        file_name: str | None = None,
+    ) -> ImportPreview:
         if not path.exists():
             raise InvalidExcelError(f"File not found: {path}")
 
@@ -111,13 +117,42 @@ class ExcelReader:
                 )
 
         return ImportPreview(
-            preview_id=uuid4(),
+            preview_id=preview_id or uuid4(),
             file_sha256=file_hash,
-            file_name=path.name,
+            file_name=file_name or path.name,
             sheets=sheets,
             images=images,
             warnings=warnings,
         )
+
+    def read_rows(self, path: Path, sheet_name: str) -> tuple[list[str], list[dict[str, Any]]]:
+        """Reparse a selected sheet and return its headers and every nonempty data row."""
+        if not path.exists() or not zipfile.is_zipfile(path):
+            raise InvalidExcelError("File is not a valid OpenXML spreadsheet (.xlsx)")
+        try:
+            wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+        except Exception as exc:  # noqa: BLE001
+            raise InvalidExcelError(f"Failed to open workbook: {exc}") from exc
+        if sheet_name not in wb.sheetnames:
+            raise InvalidExcelError(f"Sheet not found: {sheet_name}")
+
+        rows = iter(wb[sheet_name].iter_rows(values_only=True))
+        first_row = next(rows, None)
+        headers = [str(value).strip() if value is not None else "" for value in (first_row or ())]
+        if len([header for header in headers if header]) != len(set(h for h in headers if h)):
+            raise InvalidExcelError("Selected sheet contains duplicate column names")
+        result: list[dict[str, Any]] = []
+        for values in rows:
+            if not any(value is not None for value in values):
+                continue
+            result.append(
+                {
+                    header: values[index]
+                    for index, header in enumerate(headers)
+                    if header and index < len(values)
+                }
+            )
+        return [header for header in headers if header], result
 
     def _resolve_anchor_cell(self, img: Any) -> str:
         anchor = getattr(img, "anchor", None)
