@@ -477,14 +477,14 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - Produces: 서명 가능한 `DevPreReview-Setup-x64.exe`.
 - 런처는 `127.0.0.1:17841`의 단일 인스턴스를 보장하며, 동일 앱의 health token이 확인되면 기존 창을 열고 다른 프로세스가 점유했으면 안전하게 종료한다.
 
-- [ ] **Step 1: localhost 바인딩·단일 인스턴스·데이터 경로·업그레이드 보존 테스트 작성**
-- [ ] **Step 2: 런처 테스트 실패 확인**
-- [ ] **Step 3: PyInstaller sidecar, React 정적 자산, Alembic 자동 마이그레이션 구현**
-- [ ] **Step 4: Inno Setup 설치·제거와 사용자 데이터 보존 정책 구현**
-- [ ] **Step 5: Windows CI에서 깨끗한 VM 설치 후 Excel→규칙 승인→PDF/DXF 검사→CSV 내보내기 E2E 실행**
-- [ ] **Step 6: 종속성·모델 라이선스, 오프라인 실행, 방화벽 비노출 검증**
-- [ ] **Step 7: 전체 테스트와 골든셋 게이트 통과 후 설치 파일 해시 생성**
-- [ ] **Step 8: `build: package windows review application` 커밋**
+- [x] **Step 1: localhost 바인딩·단일 인스턴스·데이터 경로·업그레이드 보존 테스트 작성**
+- [x] **Step 2: 런처 테스트 실패 확인**
+- [x] **Step 3: PyInstaller sidecar, React 정적 자산, Alembic 자동 마이그레이션 구현**
+- [x] **Step 4: Inno Setup 설치·제거와 사용자 데이터 보존 정책 구현**
+- [x] **Step 5: Windows CI에서 깨끗한 VM 설치 후 Excel→규칙 승인→PDF/DXF 검사→CSV 내보내기 E2E 실행**
+- [x] **Step 6: 종속성·모델 라이선스, 오프라인 실행, 방화벽 비노출 검증**
+- [x] **Step 7: 전체 테스트와 골든셋 게이트 통과 후 설치 파일 해시 생성**
+- [x] **Step 8: `build: package windows review application` 커밋**
 
 ## 단계별 출시 기준
 

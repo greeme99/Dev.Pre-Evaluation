@@ -1,0 +1,67 @@
+name: Windows Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Build Web Application
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @dev-pre-review/web build
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Setup Python 3.12
+        run: uv python install 3.12
+
+      - name: Install Python dependencies
+        run: |
+          uv sync --frozen
+          uv pip install pyinstaller
+
+      - name: Build Executable with PyInstaller
+        run: |
+          uv run pyinstaller packaging/windows/dev-pre-review.spec --noconfirm
+
+      - name: Compile Installer with Inno Setup
+        uses: Miniong-Lee/Inno-Setup-Action@v1.2.2
+        with:
+          path: packaging/windows/installer.iss
+
+      - name: Generate SHA-256 Checksums
+        shell: pwsh
+        run: |
+          Get-FileHash -Algorithm SHA256 dist/installer/*.exe | Out-File -Encoding utf8 dist/installer/SHA256SUMS.txt
+          Get-Content dist/installer/SHA256SUMS.txt
+
+      - name: Upload Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DevPreReview-Windows-Setup
+          path: dist/installer/*
