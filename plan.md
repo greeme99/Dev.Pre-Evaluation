@@ -397,8 +397,8 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - [ ] **Step 4: `위반/의심/정보 부족` 융합 불변식과 근거 순위 구현**
 - [ ] **Step 5: llama.cpp와 Qwen3-4B-Instruct GGUF를 사용한 문제·위치·수정·근거·확인 조건 JSON schema 기반 로컬 제안 구현**
 - [ ] **Step 6: 로컬 생성 공급자가 해석형 규칙 후보를 `draft`로만 추가하는 경로 구현**
-- [x] **Step 7: Windows Credential Manager, OpenAI Responses API, 전송 미리보기, 건별 동의, 메모리 내 전송물 폐기 구현**
-- [x] **Step 8: 파이프라인·복구·동의 철회 테스트 통과 확인**
+- [ ] **Step 7: Windows Credential Manager, OpenAI Responses API, 전송 미리보기, 건별 동의, 메모리 내 전송물 폐기 구현** — 동의·provider 골격만 존재하며 실제 자격 증명 저장과 API 호출은 미구현
+- [ ] **Step 8: 파이프라인·복구·동의 철회 테스트 통과 확인** — 단위 테스트는 존재하나 실제 provider·수직 흐름 통합 검증은 미실행
 - [x] **Step 9: `feat: orchestrate evidence-backed analysis` 커밋**
 
 ### Task 12: API 계약과 핵심 React 화면
@@ -418,9 +418,9 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - [x] **Step 1: OpenAPI 응답과 다섯 화면의 핵심 사용자 동작 테스트 작성**
 - [x] **Step 2: API와 UI 테스트 실패 확인**
 - [x] **Step 3: 도메인 오류→한국어 문제 응답 매핑과 OpenAPI 타입 생성 구현**
-- [x] **Step 4: 가져오기 미리보기·규칙 승인·프로젝트 삭제·업로드·진행률 UI 구현**
-- [x] **Step 5: PDF/DXF 렌더 이미지 위 좌표 하이라이트와 근거 패널 구현**
-- [x] **Step 6: 키보드 접근성, 색 외 상태 표현, 1280×720 최소 레이아웃 테스트**
+- [ ] **Step 4: 가져오기 미리보기·규칙 승인·프로젝트 삭제·업로드·진행률 UI 구현** — 화면 골격은 있으나 프로덕션 API 연결 미완료
+- [ ] **Step 5: PDF/DXF 렌더 이미지 위 좌표 하이라이트와 근거 패널 구현** — mock placeholder만 존재
+- [ ] **Step 6: 키보드 접근성, 색 외 상태 표현, 1280×720 최소 레이아웃 테스트** — 컴포넌트 단위 일부만 검증
 - [x] **Step 7: `pnpm test --run && pnpm typecheck`와 API 계약 테스트 통과 확인**
 - [x] **Step 8: `feat: add local review workflow UI` 커밋**
 
@@ -461,7 +461,7 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 - [x] **Step 3: 튜닝/최종 평가 분리와 파일 해시 검증을 가진 manifest 구현**
 - [x] **Step 4: JSON·Markdown 평가 보고서와 임계값 기반 종료 코드 구현**
 - [x] **Step 5: 비식별 fixture 평가가 결정적으로 통과하는지 확인**
-- [x] **Step 6: 8코어 CPU·RAM 16GB·GPU 없음 기준 PC에서 실제 골든셋의 네 가지 품질 기준과 PDF 20페이지/DXF 50MB 이하 도면의 3분 성능 기준 확인**
+- [ ] **Step 6: 8코어 CPU·RAM 16GB·GPU 없음 기준 PC에서 실제 골든셋의 네 가지 품질 기준과 PDF 20페이지/DXF 50MB 이하 도면의 3분 성능 기준 확인** — 현재 evaluator는 정답 echo stub이므로 제품 품질·성능 근거가 아님
 - [x] **Step 7: `test: add golden-set quality gates` 커밋**
 
 ### Task 15: Windows 패키징, 설치·업데이트 검증과 출시 게이트
@@ -479,11 +479,11 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 
 - [x] **Step 1: localhost 바인딩·단일 인스턴스·데이터 경로·업그레이드 보존 테스트 작성**
 - [x] **Step 2: 런처 테스트 실패 확인**
-- [x] **Step 3: PyInstaller sidecar, React 정적 자산, Alembic 자동 마이그레이션 구현**
+- [ ] **Step 3: PyInstaller sidecar, React 정적 자산, Alembic 자동 마이그레이션 구현** — 설정 파일은 있으나 frozen 실행 경로 검증 미완료
 - [x] **Step 4: Inno Setup 설치·제거와 사용자 데이터 보존 정책 구현**
-- [x] **Step 5: Windows CI에서 깨끗한 VM 설치 후 Excel→규칙 승인→PDF/DXF 검사→CSV 내보내기 E2E 실행**
-- [x] **Step 6: 종속성·모델 라이선스, 오프라인 실행, 방화벽 비노출 검증**
-- [x] **Step 7: 전체 테스트와 골든셋 게이트 통과 후 설치 파일 해시 생성**
+- [ ] **Step 5: Windows CI에서 깨끗한 VM 설치 후 Excel→규칙 승인→PDF/DXF 검사→CSV 내보내기 E2E 실행**
+- [ ] **Step 6: 종속성·모델 라이선스, 오프라인 실행, 방화벽 비노출 검증**
+- [ ] **Step 7: 전체 테스트와 골든셋 게이트 통과 후 설치 파일 해시 생성** — 설치 파일 해시 생성만 workflow에 존재
 - [x] **Step 8: `build: package windows review application` 커밋**
 
 ## 단계별 출시 기준
@@ -519,15 +519,15 @@ def test_remote_failure_preserves_local_findings(pipeline, failing_remote):
 
 ## MVP 완료 정의
 
-- [x] Windows 10/11 x64의 새 사용자 계정에서 설치·실행·제거가 가능하다.
-- [x] 앱은 네트워크 없이 Excel 지식 등록과 PDF/DXF 규칙 검사를 완료한다.
-- [x] 5개 핵심 화면이 한국어로 동작하고 키보드만으로 주요 흐름을 완료할 수 있다.
-- [x] 모든 판정이 원본 셀·페이지·타일 또는 DXF 엔티티 좌표로 추적된다.
-- [x] 규칙·검색·AI의 역할과 판정 상태가 UI와 내보내기에서 구분된다.
-- [x] 중단 작업 복구, 데이터 삭제, 암호화 백업·복원이 검증된다.
-- [x] 외부 전송은 기본 0건이며 OpenAI 보완 모드에서만 명시적 동의 후 발생한다.
-- [x] 네 가지 품질 기준과 3분 성능 기준을 독립 최종 평가 분할에서 충족한다.
-- [x] 전체 테스트, 타입 검사, lint, Windows E2E, 설치 패키지 검증이 CI에서 통과한다.
+- [ ] Windows 10/11 x64의 새 사용자 계정에서 설치·실행·제거가 가능하다.
+- [ ] 앱은 네트워크 없이 Excel 지식 등록과 PDF/DXF 규칙 검사를 완료한다.
+- [ ] 5개 핵심 화면이 한국어로 동작하고 키보드만으로 주요 흐름을 완료할 수 있다.
+- [ ] 모든 판정이 원본 셀·페이지·타일 또는 DXF 엔티티 좌표로 추적된다.
+- [ ] 규칙·검색·AI의 역할과 판정 상태가 UI와 내보내기에서 구분된다.
+- [ ] 중단 작업 복구, 데이터 삭제, 암호화 백업·복원이 검증된다.
+- [ ] 외부 전송은 기본 0건이며 OpenAI 보완 모드에서만 명시적 동의 후 발생한다.
+- [ ] 네 가지 품질 기준과 3분 성능 기준을 독립 최종 평가 분할에서 충족한다.
+- [ ] 전체 테스트, 타입 검사, lint, Windows E2E, 설치 패키지 검증이 CI에서 통과한다.
 
 ## 실행 원칙
 

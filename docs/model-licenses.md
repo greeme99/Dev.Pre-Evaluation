@@ -21,13 +21,16 @@
 
 ## 2. 모델 매니페스트 및 로컬 AI 모델
 
-`packaging/windows/models.json`에 정의된 로컬 모델 고지:
+`packaging/windows/models.json`에 현재 후보로 선언된 모델은 다음과 같습니다.
 
-1. **Pixel RAG 임베딩 모델 (BGE-Small / MiniLM)**
-   - 형식: ONNX
-   - 라이선스: Apache 2.0
-   - 실행: ONNX Runtime CPU
-2. **로컬 제안 생성 모델 (Qwen2.5-Coder-3B-Instruct / Qwen3-4B)**
-   - 형식: GGUF (4-bit 양자화)
-   - 라이선스: Apache 2.0
-   - 실행: llama.cpp CPU 전용 바인딩
+| 용도 | Manifest 이름 | 형식·런타임 | Manifest 라이선스 | 검증 상태 |
+| --- | --- | --- | --- | --- |
+| OCR | PaddleOCR-Korean-Mobile | ONNX | Apache-2.0 | URL·revision·SHA-256 미검증 |
+| 텍스트 임베딩 | intfloat/multilingual-e5-small | ONNX | MIT | URL·revision·SHA-256 미검증 |
+| 시각 임베딩 | openai/clip-vit-base-patch32 | ONNX | MIT | URL·revision·SHA-256 미검증 |
+| 로컬 제안 생성 | Qwen3-4B-Instruct-GGUF | GGUF·llama.cpp | Apache-2.0 | URL·revision·SHA-256 미검증 |
+
+현재 manifest 값은 배포 후보를 기술하는 placeholder이며 설치 파일에 모델 바이너리가
+포함됐거나 오프라인 실행이 검증됐다는 의미가 아닙니다. 출시 전 각 모델의 실제 저장소,
+immutable revision, 라이선스 원문, 파일 크기와 SHA-256을 독립적으로 확인하고 별도
+라이선스/SBOM 보고서에 기록해야 합니다.
