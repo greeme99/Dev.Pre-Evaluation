@@ -34,6 +34,7 @@ def test_app_data_dir_env_override(tmp_path: Path, monkeypatch: pytest.MonkeyPat
 def test_database_path_uses_shared_data_dir_and_explicit_override(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    set_database(None)
     data_dir = tmp_path / "shared-data"
     monkeypatch.setenv("DEV_PRE_REVIEW_DATA_DIR", str(data_dir))
     monkeypatch.delenv("DEV_PRE_REVIEW_DB_PATH", raising=False)

@@ -11,7 +11,9 @@ from dev_pre_review.main import create_app
 FIXTURES_DIR = Path(__file__).resolve().parents[4] / "tests" / "fixtures" / "excel"
 
 
-def test_import_preview_endpoint_persists_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_import_preview_endpoint_persists_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     artifacts_dir = tmp_path / "artifacts"
     monkeypatch.setattr(knowledge_api, "get_artifacts_dir", lambda: artifacts_dir, raising=False)
     client = TestClient(create_app())

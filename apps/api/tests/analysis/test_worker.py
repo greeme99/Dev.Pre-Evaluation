@@ -131,7 +131,7 @@ def test_cancel_during_final_handler_wins_over_completion(
         runner.cancel(job.id)
 
     handlers[AnalysisStep.EXPORT_READY] = cancel_during_export
-    job = runner.enqueue(seed.new_job())
+    runner.enqueue(seed.new_job())
 
     result = runner.run_next()
 

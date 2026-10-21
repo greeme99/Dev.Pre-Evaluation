@@ -22,13 +22,14 @@ def importer(database, repos: Repos) -> KnowledgeImporter:
 
 def test_commits_mapping_and_saves_cases(importer: KnowledgeImporter, seed: Seed) -> None:
     reader = ExcelReader()
-    preview = reader.preview(FIXTURES_DIR / "standard.xlsx")
+    source = FIXTURES_DIR / "standard.xlsx"
+    preview = reader.preview(source)
+    _, rows = reader.read_rows(source, "오류사례")
 
     commit_req = CommitRequest(
         project_id=seed.project.id,
         preview_id=preview.preview_id,
         file_sha256=preview.file_sha256,
-        file_name=preview.file_name,
         sheet_name="오류사례",
         column_mapping={
             "부품명": "part_name",
@@ -39,7 +40,7 @@ def test_commits_mapping_and_saves_cases(importer: KnowledgeImporter, seed: Seed
         idempotency_key="commit-key-1",
     )
 
-    result = importer.commit(commit_req, preview)
+    result = importer.commit(commit_req, rows)
 
     assert isinstance(result, ImportResult)
     assert result.cases_imported == 2
@@ -54,23 +55,24 @@ def test_reimport_with_same_key_or_hash_prevents_duplicate_cases(
     importer: KnowledgeImporter, seed: Seed
 ) -> None:
     reader = ExcelReader()
-    preview = reader.preview(FIXTURES_DIR / "standard.xlsx")
+    source = FIXTURES_DIR / "standard.xlsx"
+    preview = reader.preview(source)
+    _, rows = reader.read_rows(source, "오류사례")
 
     commit_req = CommitRequest(
         project_id=seed.project.id,
         preview_id=preview.preview_id,
         file_sha256=preview.file_sha256,
-        file_name=preview.file_name,
         sheet_name="오류사례",
         column_mapping={"오류설명": "description"},
         idempotency_key="commit-key-dup",
     )
 
-    res1 = importer.commit(commit_req, preview)
+    res1 = importer.commit(commit_req, rows)
     assert res1.cases_imported == 2
 
     # Second commit with same idempotency key or content
-    res2 = importer.commit(commit_req, preview)
+    res2 = importer.commit(commit_req, rows)
     assert res2.cases_imported == 0
     assert res2.duplicate_count == 2
 

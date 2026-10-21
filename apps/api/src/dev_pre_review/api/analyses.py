@@ -3,7 +3,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 
 from dev_pre_review.domain.enums import AnalysisStep, JobState
@@ -77,7 +77,12 @@ def create_analysis_job(
 
     # Verify project and drawing exist
     project_repo.get(req.project_id)
-    drawing_repo.get(req.drawing_id)
+    drawing = drawing_repo.get(req.drawing_id)
+    if drawing.project_id != req.project_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": "drawing_project_mismatch"},
+        )
 
     job = AnalysisJob(
         project_id=req.project_id,

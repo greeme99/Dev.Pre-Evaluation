@@ -1,7 +1,5 @@
-import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Literal
 
 import uvicorn
@@ -11,7 +9,11 @@ from pydantic import BaseModel
 from dev_pre_review import __version__
 from dev_pre_review.analysis.runtime import create_analysis_worker
 from dev_pre_review.storage.database import Database
-from dev_pre_review.storage.paths import ensure_data_directories, get_artifacts_dir
+from dev_pre_review.storage.paths import (
+    ensure_data_directories,
+    get_artifacts_dir,
+    get_database_path,
+)
 
 LOCAL_HOST = "127.0.0.1"
 LOCAL_PORT = 17841
@@ -22,12 +24,7 @@ _GLOBAL_DB: Database | None = None
 def get_database() -> Database:
     global _GLOBAL_DB
     if _GLOBAL_DB is None:
-        db_path_env = os.environ.get("DEV_PRE_REVIEW_DB_PATH")
-        if db_path_env:
-            db_path = Path(db_path_env)
-        else:
-            db_path = Path.home() / ".dev_pre_review" / "dev_pre_review.db"
-        _GLOBAL_DB = Database.from_path(db_path)
+        _GLOBAL_DB = Database.from_path(get_database_path())
         _GLOBAL_DB.upgrade()
     return _GLOBAL_DB
 

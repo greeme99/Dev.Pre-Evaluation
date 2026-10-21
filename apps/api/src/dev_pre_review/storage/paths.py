@@ -35,6 +35,9 @@ def get_app_data_dir() -> Path:
 
 def get_database_path() -> Path:
     """Returns the SQLite database file path."""
+    override = os.environ.get("DEV_PRE_REVIEW_DB_PATH")
+    if override:
+        return Path(override).resolve()
     return get_app_data_dir() / "dev_pre_review.db"
 
 

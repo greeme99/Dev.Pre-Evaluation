@@ -178,6 +178,8 @@ class AnalysisJob(DomainModel):
             raise self._reject(f"complete '{step.value}' (next is {self.next_step})")
         steps = (*self.completed_steps, step)
         if len(steps) == len(ANALYSIS_STEPS):
+            if self.state is JobState.CANCELLING:
+                return self._with(completed_steps=steps)
             return self._with(
                 completed_steps=steps, state=JobState.COMPLETED, finished_at=utc_now()
             )

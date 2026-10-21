@@ -16,12 +16,22 @@ from dev_pre_review.domain.enums import (
     RuleState,
     Severity,
 )
-from dev_pre_review.domain.models import AnalysisJob, RuleDefinition, utc_now
+from dev_pre_review.domain.models import (
+    AnalysisJob,
+    DrawingArtifact,
+    ReviewProject,
+    RuleDefinition,
+    utc_now,
+)
 from dev_pre_review.drawings.contracts import DrawingDocument, TextRegion
 from dev_pre_review.models.generation import LocalSuggestionProvider
 from dev_pre_review.rules.engine import RuleEvaluator
 from dev_pre_review.storage.database import Database
-from dev_pre_review.storage.repositories import JobRepository
+from dev_pre_review.storage.repositories import (
+    DrawingRepository,
+    JobRepository,
+    ProjectRepository,
+)
 
 
 class InMemoryJobRepo:
@@ -31,8 +41,9 @@ class InMemoryJobRepo:
     def get(self, job_id) -> AnalysisJob:
         return self.jobs[job_id]
 
-    def update(self, job: AnalysisJob) -> None:
+    def update(self, job: AnalysisJob) -> AnalysisJob:
         self.jobs[job.id] = job
+        return job
 
 
 def make_test_job(job_id, project_id, drawing_id) -> AnalysisJob:
@@ -167,10 +178,6 @@ def test_pipeline_completes_with_sqlite_job_repository(tmp_path) -> None:
     job_id = uuid4()
     project_id = uuid4()
     drawing_id = uuid4()
-    from dev_pre_review.domain.models import DrawingArtifact, ReviewProject
-    from dev_pre_review.domain.enums import DrawingType
-    from dev_pre_review.storage.repositories import DrawingRepository, ProjectRepository
-
     ProjectRepository(database.sessions).add(
         ReviewProject(id=project_id, name="SQLite pipeline", created_at=utc_now())
     )

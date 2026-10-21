@@ -54,7 +54,7 @@ class AnalysisPipeline:
         job = self.job_repo.get(job_id)
         if job.state is JobState.QUEUED:
             job = job.start()
-            self.job_repo.update(job)
+            job = self.job_repo.update(job)
 
         rule_findings: list[Finding] = []
         all_findings: list[Finding] = []
@@ -101,7 +101,7 @@ class AnalysisPipeline:
 
             # Advance checkpoint
             job = job.complete_step(step)
-            self.job_repo.update(job)
+            job = self.job_repo.update(job)
 
             if self.on_step_completed:
                 self.on_step_completed(step)
@@ -110,7 +110,7 @@ class AnalysisPipeline:
             current_job = self.job_repo.get(job_id)
             if current_job.state is JobState.CANCELLING:
                 cancelled_job = current_job.confirm_cancel()
-                self.job_repo.update(cancelled_job)
+                cancelled_job = self.job_repo.update(cancelled_job)
                 return AnalysisResult(
                     job_id=job_id,
                     state=JobState.CANCELLED,

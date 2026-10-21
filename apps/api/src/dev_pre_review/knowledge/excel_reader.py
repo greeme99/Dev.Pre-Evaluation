@@ -125,8 +125,10 @@ class ExcelReader:
             warnings=warnings,
         )
 
-    def read_rows(self, path: Path, sheet_name: str) -> tuple[list[str], list[dict[str, Any]]]:
-        """Reparse a selected sheet and return its headers and every nonempty data row."""
+    def read_rows(
+        self, path: Path, sheet_name: str
+    ) -> tuple[list[str], list[tuple[int, dict[str, Any]]]]:
+        """Reparse a sheet and return headers plus every nonempty row with its number."""
         if not path.exists() or not zipfile.is_zipfile(path):
             raise InvalidExcelError("File is not a valid OpenXML spreadsheet (.xlsx)")
         try:
@@ -141,16 +143,19 @@ class ExcelReader:
         headers = [str(value).strip() if value is not None else "" for value in (first_row or ())]
         if len([header for header in headers if header]) != len(set(h for h in headers if h)):
             raise InvalidExcelError("Selected sheet contains duplicate column names")
-        result: list[dict[str, Any]] = []
-        for values in rows:
+        result: list[tuple[int, dict[str, Any]]] = []
+        for row_number, values in enumerate(rows, start=2):
             if not any(value is not None for value in values):
                 continue
             result.append(
-                {
-                    header: values[index]
-                    for index, header in enumerate(headers)
-                    if header and index < len(values)
-                }
+                (
+                    row_number,
+                    {
+                        header: values[index]
+                        for index, header in enumerate(headers)
+                        if header and index < len(values)
+                    },
+                )
             )
         return [header for header in headers if header], result
 

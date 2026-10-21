@@ -30,7 +30,13 @@ def upload(api_client: TestClient, file_path: Path) -> dict:
     with file_path.open("rb") as f:
         response = api_client.post(
             "/api/knowledge/imports/preview",
-            files={"file": (file_path.name, f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
+            files={
+                "file": (
+                    file_path.name,
+                    f,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
         )
     assert response.status_code == status.HTTP_200_OK
     return response.json()
@@ -76,7 +82,9 @@ def test_import_commit_and_list_cases_api(api_client: TestClient, seed: Seed) ->
     assert recommit_result["duplicate_count"] == 2
 
 
-def test_commit_imports_all_nonempty_rows_from_server_source(api_client: TestClient, seed: Seed, tmp_path: Path) -> None:
+def test_commit_imports_all_nonempty_rows_from_server_source(
+    api_client: TestClient, seed: Seed, tmp_path: Path
+) -> None:
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "오류사례"
@@ -97,12 +105,16 @@ def test_commit_imports_all_nonempty_rows_from_server_source(api_client: TestCli
     assert response.json()["cases_imported"] == 7
 
 
-def test_commit_rejects_client_supplied_preview_authority(api_client: TestClient, seed: Seed) -> None:
+def test_commit_rejects_client_supplied_preview_authority(
+    api_client: TestClient, seed: Seed
+) -> None:
     preview = upload(api_client, FIXTURES_DIR / "standard.xlsx")
     forged = {**preview, "file_sha256": "f" * 64}
     response = api_client.post(
         f"/api/knowledge/imports/{preview['preview_id']}/commit",
-        json=commit_payload(str(seed.project.id), preview=forged, file_sha256="f" * 64, file_name="forged.xlsx"),
+        json=commit_payload(
+            str(seed.project.id), preview=forged, file_sha256="f" * 64, file_name="forged.xlsx"
+        ),
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 

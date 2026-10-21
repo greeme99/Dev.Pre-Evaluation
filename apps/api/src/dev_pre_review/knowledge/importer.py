@@ -9,7 +9,6 @@ from sqlalchemy.engine import RowMapping
 from sqlalchemy.orm import Session, sessionmaker
 
 from dev_pre_review.domain.models import KnowledgeCase, utc_now
-from dev_pre_review.knowledge.contracts import ImportPreview
 from dev_pre_review.storage.schema import import_records, knowledge_cases
 
 
@@ -19,7 +18,6 @@ class CommitRequest(BaseModel):
     project_id: UUID
     preview_id: UUID
     file_sha256: str
-    file_name: str
     sheet_name: str
     column_mapping: dict[str, str] = Field(default_factory=dict)
     idempotency_key: str | None = None
@@ -38,7 +36,12 @@ class KnowledgeImporter:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self.session_factory = session_factory
 
-    def commit(self, req: CommitRequest, preview: ImportPreview) -> ImportResult:
+    def commit(
+        self,
+        req: CommitRequest,
+        rows: list[tuple[int, dict[str, object]]],
+        image_refs: tuple[str, ...] = (),
+    ) -> ImportResult:
         with self.session_factory() as session, session.begin():
             # Check duplicate by idempotency_key or (project_id, file_sha256)
             query = select(import_records).where(import_records.c.project_id == req.project_id)
@@ -59,10 +62,7 @@ class KnowledgeImporter:
                     duplicate_count=int(existing["case_count"]),
                 )
 
-            # Locate the requested sheet in preview
-            target_sheet = next((s for s in preview.sheets if s.sheet_name == req.sheet_name), None)
-            if target_sheet is None or not target_sheet.sample_rows:
-                # If no rows or sheet not found
+            if not rows:
                 return ImportResult(
                     project_id=req.project_id,
                     file_sha256=req.file_sha256,
@@ -73,12 +73,7 @@ class KnowledgeImporter:
             cases_to_insert: list[KnowledgeCase] = []
             now = utc_now()
 
-            # Find matching images for this sheet
-            sheet_images = [
-                img.image_id for img in preview.images if img.sheet_name == req.sheet_name
-            ]
-
-            for row_idx, row_data in enumerate(target_sheet.sample_rows):
+            for row_number, row_data in rows:
                 # Build text from mapped columns or all columns
                 parts: list[str] = []
                 for col_name, val in row_data.items():
@@ -87,14 +82,14 @@ class KnowledgeImporter:
                         parts.append(f"{mapped_role}: {val}")
 
                 combined_text = " | ".join(parts)
-                cell_coord = f"A{row_idx + 2}"
+                cell_coord = f"A{row_number}"
 
                 case = KnowledgeCase(
                     id=uuid4(),
                     project_id=req.project_id,
                     text=combined_text,
                     table=(),
-                    image_refs=tuple(sheet_images),
+                    image_refs=image_refs,
                     source_file_sha256=req.file_sha256,
                     source_sheet=req.sheet_name,
                     source_cell=cell_coord,
