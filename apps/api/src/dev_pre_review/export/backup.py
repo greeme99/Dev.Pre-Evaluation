@@ -30,6 +30,7 @@ CURRENT_PACKAGE_VERSION = 1
 SUPPORTED_VERSIONS = {1}
 SALT_LEN = 16
 NONCE_LEN = 12
+MAX_BACKUP_PACKAGE_BYTES = 100 * 1024 * 1024
 
 
 class BackupError(Exception):
@@ -42,6 +43,10 @@ class BackupAuthenticationError(BackupError):
 
 class BackupTamperedError(BackupError):
     """Raised when backup package structure or data is modified/corrupted."""
+
+
+class BackupTooLargeError(BackupError):
+    """Raised before decryption when a restore package exceeds the supported bound."""
 
 
 class IncompatibleVersionError(BackupError):
@@ -142,6 +147,10 @@ class BackupService:
         return header + salt + nonce + ciphertext
 
     def _decrypt_payload(self, package_bytes: bytes, passphrase: str) -> dict[str, Any]:
+        if len(package_bytes) > MAX_BACKUP_PACKAGE_BYTES:
+            raise BackupTooLargeError(
+                f"Backup package exceeds {MAX_BACKUP_PACKAGE_BYTES} byte limit"
+            )
         min_len = 4 + 2 + SALT_LEN + NONCE_LEN + 16  # Magic + Ver + Salt + Nonce + GCM Tag
         if len(package_bytes) < min_len:
             raise BackupTamperedError("Package size is smaller than minimum required header length")

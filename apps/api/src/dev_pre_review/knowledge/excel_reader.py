@@ -30,6 +30,13 @@ class InvalidExcelError(ExcelReaderError):
     code = "invalid_excel_file"
 
 
+MAX_ARCHIVE_ENTRIES = 10_000
+MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+MAX_MEMBER_BYTES = 128 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 200
+RATIO_CHECK_MIN_BYTES = 1024 * 1024
+
+
 class ExcelReader:
     def preview(
         self,
@@ -56,6 +63,7 @@ class ExcelReader:
 
         if not zipfile.is_zipfile(path):
             raise InvalidExcelError("File is not a valid OpenXML spreadsheet (.xlsx)")
+        self._validate_archive(path)
 
         try:
             wb = openpyxl.load_workbook(path, data_only=True)
@@ -135,6 +143,7 @@ class ExcelReader:
         """Reparse a sheet and return headers plus every nonempty row with its number."""
         if not path.exists() or not zipfile.is_zipfile(path):
             raise InvalidExcelError("File is not a valid OpenXML spreadsheet (.xlsx)")
+        self._validate_archive(path)
         try:
             wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
         except Exception as exc:  # noqa: BLE001
@@ -162,6 +171,30 @@ class ExcelReader:
                 )
             )
         return [header for header in headers if header], result
+
+    def _validate_archive(self, path: Path) -> None:
+        try:
+            with zipfile.ZipFile(path) as archive:
+                members = archive.infolist()
+        except zipfile.BadZipFile as exc:
+            raise InvalidExcelError("File is not a valid OpenXML spreadsheet (.xlsx)") from exc
+
+        if len(members) > MAX_ARCHIVE_ENTRIES:
+            raise InvalidExcelError("Excel archive contains too many entries")
+
+        total_size = 0
+        for member in members:
+            if member.flag_bits & 0x1:
+                raise InvalidExcelError("Encrypted Excel archive members are not supported")
+            if member.file_size > MAX_MEMBER_BYTES:
+                raise InvalidExcelError("Excel archive member exceeds uncompressed size limit")
+            total_size += member.file_size
+            if total_size > MAX_UNCOMPRESSED_BYTES:
+                raise InvalidExcelError("Excel archive exceeds total uncompressed size limit")
+            if member.file_size >= RATIO_CHECK_MIN_BYTES:
+                ratio = member.file_size / max(member.compress_size, 1)
+                if ratio > MAX_COMPRESSION_RATIO:
+                    raise InvalidExcelError("Excel archive member compression ratio is unsafe")
 
     def _resolve_anchor_cell(self, img: Any) -> str:
         anchor = getattr(img, "anchor", None)

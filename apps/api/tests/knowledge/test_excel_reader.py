@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from uuid import uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
@@ -60,3 +61,16 @@ def test_reads_standard_excel_sheet_and_columns(reader: ExcelReader) -> None:
 def test_rejects_encrypted_or_invalid_excel(reader: ExcelReader) -> None:
     with pytest.raises((EncryptedExcelError, InvalidExcelError)):
         reader.preview(fixture_path("invalid-encrypted.xlsx"))
+
+
+def test_rejects_high_expansion_excel_archive(
+    reader: ExcelReader, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unsafe = tmp_path / "high-expansion.xlsx"
+    with ZipFile(unsafe, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", "A" * 20_000)
+    monkeypatch.setattr("dev_pre_review.knowledge.excel_reader.MAX_COMPRESSION_RATIO", 2)
+    monkeypatch.setattr("dev_pre_review.knowledge.excel_reader.RATIO_CHECK_MIN_BYTES", 1)
+
+    with pytest.raises(InvalidExcelError, match="compression ratio"):
+        reader.preview(unsafe)

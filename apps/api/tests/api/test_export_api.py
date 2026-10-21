@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
+import dev_pre_review.api.export as export_api
 from dev_pre_review.domain.enums import DrawingType, EvidenceKind, FindingStatus, Severity
 from dev_pre_review.domain.models import (
     AnalysisJob,
@@ -121,6 +122,22 @@ def test_backup_and_restore_endpoints(api_client) -> None:
     commit_resp = client.post("/api/restores/commit", files=files2, data=data)
     assert commit_resp.status_code == 200
     assert commit_resp.json()["status"] == "restored"
+
+
+@pytest.mark.parametrize("endpoint", ["preview", "commit"])
+def test_restore_upload_rejects_oversized_package(
+    api_client, monkeypatch: pytest.MonkeyPatch, endpoint: str
+) -> None:
+    client, _, _ = api_client
+    monkeypatch.setattr(export_api, "MAX_BACKUP_UPLOAD_BYTES", 8)
+
+    response = client.post(
+        f"/api/restores/{endpoint}",
+        files={"package": ("oversized.dprb", io.BytesIO(b"x" * 9), "application/octet-stream")},
+        data={"passphrase": "very-secret-passphrase"},
+    )
+
+    assert response.status_code == 413
 
 
 def test_diagnostics_endpoint(api_client) -> None:

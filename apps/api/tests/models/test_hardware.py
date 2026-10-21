@@ -2,11 +2,16 @@
 FN-008, MOD-001~MOD-005, TC-019, TC-020.
 """
 
+import hashlib
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+from pydantic import ValidationError
+
 from dev_pre_review.models.hardware import HardwareDetector, HardwareProfile
-from dev_pre_review.models.manifests import ModelRegistry
+from dev_pre_review.models.manifests import ModelInfo, ModelRegistry
 
 
 def test_hardware_detector_falls_back_to_cpu_when_no_gpu() -> None:
@@ -76,3 +81,53 @@ def test_model_registry_recommends_rule_only_mode_when_models_missing() -> None:
     recommendation = registry.recommend(profile, cache_dir=Path("/non_existent_cache_dir"))
     assert recommendation.rule_only_mode is True
     assert recommendation.missing_required_models == ["ocr", "text_embedding", "visual_embedding"]
+
+
+def test_model_registry_requires_matching_size_and_hash(tmp_path: Path) -> None:
+    content = b"verified local model"
+    model = ModelInfo(
+        name="test",
+        type="ocr",
+        runtime="onnx",
+        url="https://example.invalid/model",
+        revision="test",
+        sha256=hashlib.sha256(content).hexdigest(),
+        size_bytes=len(content),
+        license="MIT",
+    )
+    registry = ModelRegistry(models={"ocr": model})
+    profile = HardwareProfile(has_cuda=False, execution_provider="cpu", ram_mb=8192, vram_mb=0)
+
+    (tmp_path / "ocr.bin").write_bytes(content)
+    valid = registry.recommend(profile, cache_dir=tmp_path)
+    assert valid.available_models == ["ocr"]
+    assert valid.rule_only_mode is False
+
+    (tmp_path / "ocr.bin").write_bytes(b"tampered local model")
+    invalid = registry.recommend(profile, cache_dir=tmp_path)
+    assert invalid.available_models == []
+    assert invalid.missing_required_models == ["ocr"]
+    assert invalid.rule_only_mode is True
+
+
+def test_model_manifest_rejects_non_hex_sha256(tmp_path: Path) -> None:
+    manifest = {
+        "manifest_version": "test",
+        "models": {
+            "ocr": {
+                "name": "invalid",
+                "type": "ocr",
+                "runtime": "onnx",
+                "url": "https://example.invalid/model",
+                "revision": "test",
+                "sha256": "z" * 64,
+                "size_bytes": 1,
+                "license": "MIT",
+            }
+        },
+    }
+    path = tmp_path / "invalid-models.json"
+    path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        ModelRegistry.load_from_path(path)

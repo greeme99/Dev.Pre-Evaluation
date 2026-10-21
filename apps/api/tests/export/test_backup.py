@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 
+import dev_pre_review.export.backup as backup_module
 from dev_pre_review.domain.enums import (
     DrawingType,
     EvidenceKind,
@@ -23,6 +24,7 @@ from dev_pre_review.export.backup import (
     BackupAuthenticationError,
     BackupService,
     BackupTamperedError,
+    BackupTooLargeError,
 )
 from dev_pre_review.storage.database import Database
 from dev_pre_review.storage.repositories import (
@@ -141,3 +143,14 @@ def test_restore_tampered_package_raises_tampered_error(source_db) -> None:
 
     with pytest.raises((BackupTamperedError, BackupAuthenticationError)):
         service.preview(bytes(tampered_bytes), passphrase="correct-passphrase")
+
+
+def test_backup_service_rejects_oversized_package_before_decrypt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(backup_module, "MAX_BACKUP_PACKAGE_BYTES", 8)
+    with pytest.raises(BackupTooLargeError):
+        BackupService().preview(
+            b"x" * 9,
+            passphrase="correct-passphrase",
+        )

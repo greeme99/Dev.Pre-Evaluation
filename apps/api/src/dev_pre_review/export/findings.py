@@ -30,6 +30,12 @@ STATUS_KR_MAP = {
     FindingStatus.SUSPECTED: "의심",
     FindingStatus.INSUFFICIENT_INFORMATION: "정보 부족",
 }
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _escape_spreadsheet_cell(value: str) -> str:
+    """Keep user-controlled strings inert when opened by spreadsheet software."""
+    return f"'{value}" if value.startswith(FORMULA_PREFIXES) else value
 
 
 class FindingExporter:
@@ -72,14 +78,17 @@ class FindingExporter:
         evidences_str = ", ".join(f"{e.kind.value.upper()}:{e.ref_id}" for e in finding.evidence)
 
         return [
-            str(idx),
-            status_kr,
-            severity_str,
-            rule_code,
-            finding.message,
-            bbox_str,
-            evidences_str,
-            drawing_status,
+            _escape_spreadsheet_cell(value)
+            for value in [
+                str(idx),
+                status_kr,
+                severity_str,
+                rule_code,
+                finding.message,
+                bbox_str,
+                evidences_str,
+                drawing_status,
+            ]
         ]
 
     def to_csv(self, job_id: UUID) -> bytes:

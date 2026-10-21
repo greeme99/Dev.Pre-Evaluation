@@ -1,5 +1,6 @@
 """Model manifest specification and registry recommendation (FN-008, MOD-002~MOD-005)."""
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -16,7 +17,7 @@ class ModelInfo(BaseModel):
     runtime: str
     url: str
     revision: str
-    sha256: str = Field(min_length=64, max_length=64)
+    sha256: str = Field(pattern=r"^[0-9a-fA-F]{64}$")
     size_bytes: int = Field(gt=0)
     license: str
     min_ram_mb: int = 512
@@ -63,8 +64,7 @@ class ModelRegistry:
             is_present = False
             if cache_dir is not None and cache_dir.exists():
                 model_file = cache_dir / f"{key}.bin"
-                if model_file.exists():
-                    is_present = True
+                is_present = self._matches_manifest(model_file, model)
 
             if is_present:
                 available.append(key)
@@ -79,3 +79,13 @@ class ModelRegistry:
             missing_required_models=missing_required,
             available_models=available,
         )
+
+    @staticmethod
+    def _matches_manifest(path: Path, model: ModelInfo) -> bool:
+        if not path.is_file() or path.stat().st_size != model.size_bytes:
+            return False
+        digest = hashlib.sha256()
+        with path.open("rb") as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest().lower() == model.sha256.lower()

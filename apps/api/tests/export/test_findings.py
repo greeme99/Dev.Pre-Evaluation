@@ -156,3 +156,32 @@ def test_export_findings_when_source_drawing_missing(populated_db) -> None:
     row = reader[1]
     # TC-026: 도면 부재 상태를 정직하게 출력
     assert row[7] == "원본 부재"
+
+
+def test_export_escapes_spreadsheet_formula_cells(populated_db) -> None:
+    db, job, finding = populated_db
+    malicious = finding.model_copy(
+        update={
+            "id": uuid4(),
+            "message": '=HYPERLINK("https://attacker.example")',
+            "location": "+2+2",
+            "pixel_bbox": None,
+            "evidence": (Evidence(kind=EvidenceKind.RULE, ref_id="@SUM(1,1)"),),
+        }
+    )
+    FindingRepository(db.sessions).add_many([malicious])
+    exporter = FindingExporter(db.sessions)
+
+    csv_rows = list(csv.reader(io.StringIO(exporter.to_csv(job.id).decode("utf-8-sig"))))
+    malicious_csv = csv_rows[2]
+    assert malicious_csv[3].startswith("'@")
+    assert malicious_csv[4].startswith("'=")
+    assert malicious_csv[5].startswith("'+")
+
+    workbook = openpyxl.load_workbook(io.BytesIO(exporter.to_xlsx(job.id)), data_only=False)
+    worksheet = workbook.active
+    assert worksheet is not None
+    assert worksheet.cell(3, 4).value.startswith("'@")
+    assert worksheet.cell(3, 5).value.startswith("'=")
+    assert worksheet.cell(3, 6).value.startswith("'+")
+    assert worksheet.cell(3, 5).data_type != "f"

@@ -1,10 +1,14 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Literal
+from urllib.parse import urlsplit
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from dev_pre_review import __version__
 from dev_pre_review.analysis.runtime import create_analysis_worker
@@ -55,6 +59,25 @@ def create_app() -> FastAPI:
             worker.stop()
 
     app = FastAPI(title="Dev Pre-Review", version=__version__, lifespan=lifespan)
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["127.0.0.1", "localhost", "testserver"],
+    )
+
+    @app.middleware("http")
+    async def protect_local_mutations(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            origin = request.headers.get("origin")
+            if origin:
+                parsed = urlsplit(origin)
+                if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"}:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"detail": {"code": "untrusted_origin"}},
+                    )
+        return await call_next(request)
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
