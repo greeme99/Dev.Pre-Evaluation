@@ -11,12 +11,14 @@
 
 ## 📌 주요 특징 (Key Features)
 
-- **오프라인 우선 & 보안 보장 (Local-First Architecture)**
-  - Docker 불필요, `127.0.0.1:17841` 로컬 루프백에만 바인딩되어 외부 네트워크로 도면 원문이나 데이터가 무단 유출되지 않습니다.
-  - Windows 10/11 로컬 단일 사용자 환경을 타깃으로 경량화되어 있습니다.
+- **오프라인 우선 & 보안 보장 (Local-First Architecture & Security)**
+  - Docker 불필요, `127.0.0.1:17841` 로컬 루프백에만 바인딩되며 엄격한 Host/Origin 헤더 검증으로 DNS rebinding 및 CSRF를 차단합니다.
+  - 100MB 초과 업로드 및 압축 폭탄(ZIP bomb) 방어, CSV/XLSX 수식 인젝션 이스케이프, 모델 파일 SHA-256 체크섬 무결성 검증이 적용되어 있습니다.
 - **결정론적 규칙 검사 엔진 (Rule Engine)**
   - 엔지니어가 승인한 규칙에 기반하여 모호성 없는 명확한 3단계 판정(`위반 Violation`, `의심 Suspected`, `정보 부족 Insufficient Information`)을 내립니다.
   - AI에 의한 자의적 판정 격상을 엄격히 금지합니다.
+- **서버 신뢰 경계 기반 지식 가져오기 (Server-Authoritative Knowledge Import)**
+  - 클라이언트 변조 데이터에 의존하지 않고, 서버 측 격리 저장소에 보관된 원본 XLSX를 백엔드가 직접 재파싱하여 전체 데이터 행을 확정(Commit)합니다.
 - **하이브리드 근거 검색 (Pixel RAG + Text BM25)**
   - 과거 설계 오류 사례 및 도면 요소에 대해 텍스트 키워드와 시각 타일 벡터 임베딩을 결합하여 가장 신뢰도 높은 근거를 Top-5로 매칭합니다.
 - **도면 뷰어 & 좌표 하이라이트**
@@ -46,7 +48,7 @@ Dev.Pre-Evaluation/
 │   │   │   ├── retrieval/   # BM25 텍스트 & Qdrant Pixel RAG 검색
 │   │   │   ├── rules/       # 규칙 카탈로그 및 결정론적 검사 엔진
 │   │   │   └── storage/     # SQLite DB (SQLAlchemy 2.0, Alembic)
-│   │   └── tests/           # 130+ pytest 단위/통합 테스트
+│   │   └── tests/           # 183개 pytest 단위/통합 테스트
 │   └── web/                 # React 19 + Vite 프론트엔드 (TypeScript)
 │       ├── src/
 │       │   ├── app/         # 메인 앱 라우터, 레이아웃, API 클라이언트
@@ -89,11 +91,12 @@ manifest hash와 샘플별 종료 상태를 기록합니다. 2026-10-21 로컬 `
 | 영역 | 상태 | 현재 근거와 제한 |
 | --- | --- | --- |
 | 백엔드 도메인·파서·규칙·저장소 단위 기능 | **Verified (개발 환경)** | pytest 183개, Ruff, mypy 통과 |
-| React 화면과 컴포넌트 | **Verified (개발 환경)** | 프로덕션 API 연결, 테스트 18개, ESLint, 타입체크, 빌드 통과 |
-| Excel→도면→분석→결과 수직 흐름 | **Partial** | 백엔드 Excel 확정과 도면 분석 UI는 구현; Excel UI/API 연결과 출시 환경 E2E는 미완료 |
-| 골든셋 품질·성능 Gate | **Failed / Blocked** | 실제 파이프라인 평가는 동작하지만 현재 품질 기준 미달·검색 평가 불가 |
-| Windows 설치 패키지 | **Implemented / Unverified on Windows** | 설치 후 UI·API 스모크 CI를 추가했으나 현재 macOS 작업에서는 실행하지 못함 |
-| 로컬 모델·OpenAI 보완 | **Planned** | manifest/provider 골격만 존재하며 배포 자산·실제 호출 미검증 |
+| React 화면과 컴포넌트 | **Verified (개발 환경)** | 프로덕션 API 연동, Vitest 18개, ESLint, 타입체크, 프로덕션 빌드 통과 |
+| Excel→도면→분석→결과 수직 흐름 | **Verified (수직 통합)** | 서버 주도 원본 재파싱 확정(Commit), SQLite 낙관적 락/취소 무결성, 도면 소유권 검증 및 E2E API 흐름 통과 |
+| 입력·내보내기 보안 | **Hardened** | Host/Origin 헤더 검증(DNS rebinding 방어), 100MB/압축폭탄 차단, CSV/XLSX 수식 인젝션 방지, 모델 SHA-256 검증 통과 |
+| 골든셋 품질·성능 Gate | **Executable / Gap Identified** | 실제 프로덕션 파이프라인 기반 평가 CLI 실행 및 manifest 해시 검증 완료 (단, 현재 품질 기준 미달 및 검색 평가기 부재) |
+| Windows 설치 패키지 | **Smoke Script Implemented** | 단일 바이너리/런타임 정적 자산 경로 통합, GitHub Actions CI Windows 스모크 테스트 워크플로우 추가 (Windows 환경 실행 필요) |
+| 로컬 모델·OpenAI 보완 | **Planned** | manifest/provider 골격 및 SHA-256 체크섬 검증 구현; 배포 가중치 및 실제 외부 호출 연동은 미진행 |
 
 ---
 
@@ -149,19 +152,26 @@ uv run mypy apps/api/src
 uv run pytest apps/api/tests
 ```
 
-### 프론트엔드 검증 (Lint, Typecheck, Tests, Build)
+### 프론트엔드 및 계약 검증 (Lint, Typecheck, Tests, Build)
 ```bash
 # 단위 및 컴포넌트 테스트
 pnpm --filter @dev-pre-review/web test --run
 
+# TypeScript 타입 검사 (웹 앱 및 API 계약 패키지)
+pnpm --filter @dev-pre-review/web typecheck
+pnpm --filter @dev-pre-review/contracts typecheck
+
 # ESLint 코드 검사
 pnpm --filter @dev-pre-review/web lint
 
-# TypeScript 타입 검사
-pnpm --filter @dev-pre-review/web typecheck
-
 # 프로덕션 빌드 검증
 pnpm --filter @dev-pre-review/web build
+```
+
+### Windows 릴리스 스모크 검증 (Windows Release Smoke Gate)
+```powershell
+# Windows 환경에서 빌드 패키지 압축 해제, 정적 파일 서빙, API 헬스체크 및 프로세스 라이프사이클 자동 검증
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_windows_release.ps1
 ```
 
 ### 골든셋 벤치마크 평가 (Golden Set Benchmark)
