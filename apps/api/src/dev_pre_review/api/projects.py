@@ -75,9 +75,7 @@ def upload_drawing(
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail={
-                        "code": report.errors[0].code.value
-                        if report.errors
-                        else "invalid_drawing"
+                        "code": report.errors[0].code.value if report.errors else "invalid_drawing"
                     },
                 )
 

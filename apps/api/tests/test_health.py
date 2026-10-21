@@ -11,5 +11,6 @@ def test_health_returns_version() -> None:
 
     assert response.status_code == 200
     body = response.json()
+    assert body["product"] == "dev-pre-review"
     assert body["status"] == "ok"
     assert body["version"] == __version__

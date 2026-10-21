@@ -3,6 +3,7 @@
 References: TC-008, TC-033, TC-106, TC-108, plan.md.
 """
 
+import json
 import socket
 import sys
 import threading
@@ -29,7 +30,8 @@ class LauncherConfig:
 
     def __post_init__(self) -> None:
         # Strict security constraint: Loopback only (TC-108)
-        allowed = {"127.0.0.1", "localhost", "::1"}
+        # The packaged launcher intentionally uses IPv4 sockets and URLs only.
+        allowed = {"127.0.0.1", "localhost"}
         if self.host not in allowed:
             raise ValueError(
                 f"Security violation: Only loopback binding is permitted, got '{self.host}'"
@@ -47,6 +49,24 @@ def check_port_available(host: str, port: int) -> bool:
             return False
 
 
+def resolve_static_dir(configured: Path | None = None) -> Path | None:
+    """Find a built web application in an explicit, frozen, or source checkout path."""
+    candidates: list[Path] = []
+    if configured is not None:
+        candidates.append(Path(configured))
+
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    if getattr(sys, "frozen", False) and bundle_root:
+        candidates.append(Path(bundle_root) / "web" / "dist")
+    else:
+        candidates.append(Path(__file__).resolve().parents[4] / "apps" / "web" / "dist")
+
+    return next(
+        (candidate for candidate in candidates if (candidate / "index.html").is_file()),
+        None,
+    )
+
+
 def verify_instance_status(config: LauncherConfig) -> str:
     """Determines if the target port is free, running our app, or occupied by another process.
 
@@ -58,13 +78,13 @@ def verify_instance_status(config: LauncherConfig) -> str:
     if check_port_available(config.host, config.port):
         return "ready"
 
-    health_url = f"http://{config.host}:{config.port}/health"
+    health_url = f"http://{config.host}:{config.port}/api/health"
     try:
         req = urllib.request.Request(health_url, method="GET")
         with urllib.request.urlopen(req, timeout=1.0) as resp:  # noqa: S310
             if resp.status == 200:
-                body = resp.read().decode("utf-8")
-                if "ok" in body or "status" in body:
+                body = json.loads(resp.read().decode("utf-8"))
+                if body.get("product") == "dev-pre-review" and body.get("status") == "ok":
                     return "running"
     except Exception:  # noqa: S110
         pass
@@ -99,9 +119,10 @@ def run_launcher(config: LauncherConfig | None = None) -> int:
     # Status is 'ready': Launch uvicorn server
     app = create_app()
 
-    # Mount static assets if provided (bundled React web dist)
-    if cfg.static_dir and Path(cfg.static_dir).exists():
-        app.mount("/", StaticFiles(directory=cfg.static_dir, html=True), name="static")
+    # Mount the bundled React web distribution after API routes.
+    static_dir = resolve_static_dir(cfg.static_dir)
+    if static_dir is not None:
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
     if cfg.open_browser:
 

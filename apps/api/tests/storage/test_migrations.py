@@ -1,12 +1,15 @@
 """Alembic migrations stay in sync with the SQLAlchemy schema."""
 
+import sys
+from pathlib import Path
+
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import IntegrityError
 
-from dev_pre_review.storage.database import Database
+from dev_pre_review.storage.database import Database, get_migrations_dir
 from dev_pre_review.storage.schema import metadata
 
 EXPECTED_TABLES = {
@@ -48,3 +51,12 @@ def test_foreign_keys_are_enforced(database: Database) -> None:
             ),
             {"sha": "0" * 64},
         )
+
+
+def test_migrations_dir_uses_frozen_bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bundled_migrations = tmp_path / "migrations"
+    bundled_migrations.mkdir()
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    assert get_migrations_dir() == bundled_migrations

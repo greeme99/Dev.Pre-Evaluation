@@ -1,8 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
+project_root = Path(SPECPATH).resolve().parents[1]
 
 # Collect all hidden imports for FastAPI, SQLAlchemy, Alembic, and parsers
 hidden_imports = [
@@ -27,13 +30,14 @@ hidden_imports = [
 ] + collect_submodules("dev_pre_review")
 
 datas = [
-    ("../../apps/web/dist", "web/dist"),
-    ("models.json", "packaging/windows"),
+    (str(project_root / "apps" / "web" / "dist"), "web/dist"),
+    (str(project_root / "apps" / "api" / "migrations"), "migrations"),
+    (str(project_root / "packaging" / "windows" / "models.json"), "packaging/windows"),
 ] + collect_data_files("alembic")
 
 a = Analysis(
-    ["../../apps/api/src/dev_pre_review/launcher.py"],
-    pathex=["../../apps/api/src"],
+    [str(project_root / "apps" / "api" / "src" / "dev_pre_review" / "launcher.py")],
+    pathex=[str(project_root / "apps" / "api" / "src")],
     binaries=[],
     datas=datas,
     hiddenimports=hidden_imports,

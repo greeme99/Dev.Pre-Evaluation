@@ -52,6 +52,22 @@ jobs:
         run: |
           iscc packaging/windows/installer.iss
 
+      - name: Smoke Test Installed Application
+        shell: pwsh
+        run: |
+          $installRoot = Join-Path $env:RUNNER_TEMP "DevPreReviewSmoke"
+          $installer = (Get-ChildItem "dist/installer/DevPreReview-Setup-x64.exe").FullName
+          $install = Start-Process -FilePath $installer -ArgumentList @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/DIR=$installRoot"
+          ) -Wait -PassThru
+          if ($install.ExitCode -ne 0) {
+            throw "Installer failed with exit code $($install.ExitCode)"
+          }
+          ./packaging/windows/smoke-installed.ps1 -InstallDir $installRoot
+
       - name: Generate SHA-256 Checksums
         shell: pwsh
         run: |

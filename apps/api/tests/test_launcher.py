@@ -1,6 +1,9 @@
 """Tests for launcher, single-instance verification, and data paths (TC-106, TC-108)."""
 
+import io
+import json
 import socket
+import sys
 from pathlib import Path
 
 import pytest
@@ -8,6 +11,7 @@ import pytest
 from dev_pre_review.launcher import (
     LauncherConfig,
     check_port_available,
+    resolve_static_dir,
     verify_instance_status,
 )
 from dev_pre_review.main import get_database, set_database
@@ -81,6 +85,9 @@ def test_launcher_security_rejects_non_loopback() -> None:
     with pytest.raises(ValueError, match="Only loopback binding"):
         LauncherConfig(host="192.168.1.100", port=17841)
 
+    with pytest.raises(ValueError, match="Only loopback binding"):
+        LauncherConfig(host="::1", port=17841)
+
 
 def test_verify_instance_status_free_port() -> None:
     # Use random free port
@@ -107,3 +114,53 @@ def test_verify_instance_status_alien_process_conflict() -> None:
         assert status == "conflict"
     finally:
         sock.close()
+
+
+class _FakeHttpResponse:
+    def __init__(self, payload: dict[str, str]) -> None:
+        self.status = 200
+        self._body = io.BytesIO(json.dumps(payload).encode("utf-8"))
+
+    def __enter__(self) -> "_FakeHttpResponse":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self._body.read()
+
+
+def test_verify_instance_status_requires_exact_product_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = LauncherConfig()
+    monkeypatch.setattr("dev_pre_review.launcher.check_port_available", lambda *_args: False)
+
+    monkeypatch.setattr(
+        "dev_pre_review.launcher.urllib.request.urlopen",
+        lambda *_args, **_kwargs: _FakeHttpResponse(
+            {"product": "dev-pre-review", "status": "ok", "version": "0.1.0"}
+        ),
+    )
+    assert verify_instance_status(config) == "running"
+
+    monkeypatch.setattr(
+        "dev_pre_review.launcher.urllib.request.urlopen",
+        lambda *_args, **_kwargs: _FakeHttpResponse(
+            {"product": "another-product", "status": "ok", "version": "0.1.0"}
+        ),
+    )
+    assert verify_instance_status(config) == "conflict"
+
+
+def test_resolve_static_dir_uses_frozen_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundled_static = tmp_path / "web" / "dist"
+    bundled_static.mkdir(parents=True)
+    (bundled_static / "index.html").write_text("<main>app</main>", encoding="utf-8")
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
+
+    assert resolve_static_dir() == bundled_static

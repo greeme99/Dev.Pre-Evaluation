@@ -1,5 +1,6 @@
 """SQLite engine, session factory and programmatic Alembic upgrade."""
 
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,14 @@ from sqlalchemy.orm import Session, sessionmaker
 # apps/api/src/dev_pre_review/storage/database.py -> apps/api
 _API_ROOT = Path(__file__).resolve().parents[3]
 MIGRATIONS_DIR = _API_ROOT / "migrations"
+
+
+def get_migrations_dir() -> Path:
+    """Resolve migrations from a PyInstaller bundle or the source checkout."""
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    if getattr(sys, "frozen", False) and bundle_root:
+        return Path(bundle_root) / "migrations"
+    return MIGRATIONS_DIR
 
 
 def _configure_sqlite(dbapi_connection: Any, _record: Any) -> None:
@@ -38,7 +47,7 @@ class Database:
 
     def upgrade(self, revision: str = "head") -> None:
         config = Config()
-        config.set_main_option("script_location", str(MIGRATIONS_DIR))
+        config.set_main_option("script_location", str(get_migrations_dir()))
         with self.engine.connect() as connection:
             config.attributes["connection"] = connection
             command.upgrade(config, revision)

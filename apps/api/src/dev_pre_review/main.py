@@ -35,6 +35,7 @@ def set_database(db: Database | None) -> None:
 
 
 class HealthResponse(BaseModel):
+    product: Literal["dev-pre-review"]
     status: Literal["ok"]
     version: str
 
@@ -57,7 +58,7 @@ def create_app() -> FastAPI:
 
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
-        return HealthResponse(status="ok", version=__version__)
+        return HealthResponse(product="dev-pre-review", status="ok", version=__version__)
 
     from dev_pre_review.api.analyses import router as analyses_router
     from dev_pre_review.api.drawings import router as drawings_router

@@ -15,11 +15,17 @@ def test_workflow_paths_reference_response_schemas() -> None:
         ("/api/analyses/{job_id}/findings", "get"): "FindingsResponse",
     }
     for (path, method), response_schema in expected.items():
-        response = paths[path][method]["responses"]["201" if method == "post" and path in {
-            "/api/projects",
-            "/api/projects/{project_id}/drawings",
-            "/api/analyses",
-        } else "200"]
+        response = paths[path][method]["responses"][
+            "201"
+            if method == "post"
+            and path
+            in {
+                "/api/projects",
+                "/api/projects/{project_id}/drawings",
+                "/api/analyses",
+            }
+            else "200"
+        ]
         assert response["content"]["application/json"]["schema"]["$ref"].endswith(
             f"/{response_schema}"
         )
@@ -51,8 +57,7 @@ def test_workflow_response_schemas_keep_backend_fields_and_enums() -> None:
     assert job["state"]["$ref"].endswith("/JobState")
     assert job["completed_steps"]["items"]["$ref"].endswith("/AnalysisStep")
     assert any(
-        option.get("$ref", "").endswith("/AnalysisStep")
-        for option in job["failed_step"]["anyOf"]
+        option.get("$ref", "").endswith("/AnalysisStep") for option in job["failed_step"]["anyOf"]
     )
 
     finding_fields = set(schemas["Finding"]["properties"])
