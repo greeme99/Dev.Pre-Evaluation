@@ -92,9 +92,7 @@ def render(openapi: dict[str, Any]) -> str:
         lines.append(f"export interface {name} {{")
         for property_name, property_schema in properties.items():
             optional = "" if property_name in required else "?"
-            lines.append(
-                f"  {property_name}{optional}: {schema_type(property_schema)};"
-            )
+            lines.append(f"  {property_name}{optional}: {schema_type(property_schema)};")
         lines.extend(["}", ""])
 
     return "\n".join(lines).rstrip() + "\n"

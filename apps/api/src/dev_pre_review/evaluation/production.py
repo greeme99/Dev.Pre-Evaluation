@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from dev_pre_review.analysis.runtime import create_analysis_worker
-from dev_pre_review.domain.enums import DrawingType, EvidenceKind, JobState
+from dev_pre_review.domain.enums import AnalysisStep, DrawingType, EvidenceKind
 from dev_pre_review.domain.models import AnalysisJob, DrawingArtifact, ReviewProject, utc_now
 from dev_pre_review.evaluation.runner import GoldenSample
 from dev_pre_review.storage.database import Database
@@ -89,7 +89,7 @@ class ProductionSampleEvaluator:
                     "predicted_findings": predicted,
                     "retrieval_ranks": [],
                     "retrieval_available": False,
-                    "extraction_success": final.state is JobState.COMPLETED,
+                    "extraction_success": AnalysisStep.EXTRACT in final.completed_steps,
                     "latency_ms": analysis_latency_ms,
                     "terminal_state": final.state.value,
                     "error_code": final.error_code,

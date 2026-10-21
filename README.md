@@ -73,25 +73,26 @@ Dev.Pre-Evaluation/
 
 | 평가 지표 (Metric) | 출시 기준 (Threshold) | 검증 상태 |
 | --- | --- | :---: |
-| **도면 요소 추출 성공률** | $\ge 95.0\%$ | ⚠️ 미검증 |
-| **위반 판정 정밀도 (Precision)** | $\ge 90.0\%$ | ⚠️ 미검증 |
-| **위반 판정 재현율 (Recall)** | $\ge 80.0\%$ | ⚠️ 미검증 |
-| **근거 검색 Top-5 적중률** | $\ge 80.0\%$ | ⚠️ 합성 검색 스모크만 통과 |
-| **P95 분석 지연시간** | $\le 180\text{초}$ (PDF 20p / DXF 50MB) | ⚠️ 미검증 |
+| **도면 요소 추출 성공률** | $\ge 95.0\%$ | ⚠️ 소형 fixture 2/2만 성공; 대표 표본 미검증 |
+| **위반 판정 정밀도 (Precision)** | $\ge 90.0\%$ | ❌ 현재 final fixture 0.0% |
+| **위반 판정 재현율 (Recall)** | $\ge 80.0\%$ | ❌ 현재 final fixture 0.0% |
+| **근거 검색 Top-5 적중률** | $\ge 80.0\%$ | ❌ 검색 평가기 미구현(`unavailable`) |
+| **P95 분석 지연시간** | $\le 180\text{초}$ (PDF 20p / DXF 50MB) | ⚠️ 소형 fixture만 측정; 목표 크기 미검증 |
 
-현재 골든셋 CLI의 기본 평가기는 평가 하네스 검증용 결정론적 stub이며 실제 분석
-파이프라인의 품질·성능을 측정하지 않습니다. 실제 파이프라인 연결과 독립 최종 분할
-평가 보고서가 준비되기 전까지 위 수치를 출시 근거로 사용하지 않습니다.
+현재 골든셋 CLI는 프로덕션 파서·규칙 worker를 실행하고 build, 환경, evaluator,
+manifest hash와 샘플별 종료 상태를 기록합니다. 2026-10-21 로컬 `final` 실행은 정밀도·
+재현율 기준 미달과 검색 평가기 부재로 정상적으로 실패했습니다. 현재 fixture는 대표성 있는
+독립 골든셋이 아니므로 추출률과 지연시간도 출시 근거로 사용하지 않습니다.
 
 ### 구현 및 검증 상태
 
 | 영역 | 상태 | 현재 근거와 제한 |
 | --- | --- | --- |
-| 백엔드 도메인·파서·규칙·저장소 단위 기능 | **Verified** | 로컬 환경에서 pytest 138개, Ruff, mypy 통과 |
-| React 화면과 컴포넌트 | **Partial** | 컴포넌트 테스트 10개·빌드 통과, 프로덕션 API 연결은 미완료 |
-| Excel→도면→분석→결과 수직 흐름 | **Partial** | 개별 모듈은 존재하지만 실제 worker·영구 업로드·UI 흐름 연결 미완료 |
-| 골든셋 품질·성능 Gate | **Planned** | 실제 파이프라인 평가와 충분한 독립 표본 필요 |
-| Windows 설치 패키지 | **Partial** | 빌드 설정은 존재하나 설치·실행·업그레이드 E2E 미검증 |
+| 백엔드 도메인·파서·규칙·저장소 단위 기능 | **Verified (개발 환경)** | pytest 183개, Ruff, mypy 통과 |
+| React 화면과 컴포넌트 | **Verified (개발 환경)** | 프로덕션 API 연결, 테스트 18개, ESLint, 타입체크, 빌드 통과 |
+| Excel→도면→분석→결과 수직 흐름 | **Partial** | 백엔드 Excel 확정과 도면 분석 UI는 구현; Excel UI/API 연결과 출시 환경 E2E는 미완료 |
+| 골든셋 품질·성능 Gate | **Failed / Blocked** | 실제 파이프라인 평가는 동작하지만 현재 품질 기준 미달·검색 평가 불가 |
+| Windows 설치 패키지 | **Implemented / Unverified on Windows** | 설치 후 UI·API 스모크 CI를 추가했으나 현재 macOS 작업에서는 실행하지 못함 |
 | 로컬 모델·OpenAI 보완 | **Planned** | manifest/provider 골격만 존재하며 배포 자산·실제 호출 미검증 |
 
 ---
@@ -144,7 +145,7 @@ uv run ruff format --check apps/api/src apps/api/tests
 # 정적 타입 검사 (Mypy Strict)
 uv run mypy apps/api/src
 
-# 단위 및 통합 테스트 (현재 수집 기준 138개 테스트)
+# 단위 및 통합 테스트 (현재 수집 기준 183개 테스트)
 uv run pytest apps/api/tests
 ```
 

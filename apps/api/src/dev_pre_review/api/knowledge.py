@@ -20,7 +20,11 @@ from dev_pre_review.knowledge.importer import (
     ImportResult,
     KnowledgeImporter,
 )
-from dev_pre_review.knowledge.preview_store import ImportPreviewNotFound, ImportPreviewStore
+from dev_pre_review.knowledge.preview_store import (
+    ImportPreviewCapacityExceeded,
+    ImportPreviewNotFound,
+    ImportPreviewStore,
+)
 from dev_pre_review.main import get_database
 from dev_pre_review.storage.database import Database
 from dev_pre_review.storage.files import FileStore, FileTooLargeError
@@ -82,6 +86,11 @@ def preview_excel_import(file: UploadFile) -> ImportPreview:
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail=str(exc),
             ) from exc
+        except ImportPreviewCapacityExceeded as exc:
+            raise HTTPException(
+                status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
+                detail=str(exc),
+            ) from exc
 
 
 @router.post("/imports/{import_id}/commit", response_model=ImportResult)
@@ -94,9 +103,9 @@ def commit_excel_import(
     ProjectRepository(db.sessions).get(payload.project_id)
     preview_store = ImportPreviewStore(get_artifacts_dir() / "import-previews")
     try:
-        source_path = preview_store.resolve(import_id)
-        preview = excel_reader.preview(source_path, preview_id=import_id)
-        columns, rows = excel_reader.read_rows(source_path, payload.sheet_name)
+        with preview_store.lease(import_id) as source_path:
+            preview = excel_reader.preview(source_path, preview_id=import_id)
+            columns, rows = excel_reader.read_rows(source_path, payload.sheet_name)
     except ImportPreviewNotFound as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidExcelError as exc:

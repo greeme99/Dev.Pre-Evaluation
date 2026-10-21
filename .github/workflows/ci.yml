@@ -30,6 +30,10 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy apps/api/src
+      - name: Check generated workflow contract
+        run: uv run python scripts/generate_workflow_contracts.py --check
+        env:
+          PYTHONPATH: apps/api/src
       - run: uv run pytest
 
   web:

@@ -4,7 +4,10 @@ import hashlib
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import dev_pre_review.evaluation.production as production_module
+from dev_pre_review.domain.enums import AnalysisStep, JobState
 from dev_pre_review.evaluation.cli import main
 from dev_pre_review.evaluation.production import ProductionSampleEvaluator
 from dev_pre_review.evaluation.runner import EvaluationDatasetSplit, GoldenSample
@@ -33,6 +36,35 @@ def test_production_evaluator_uses_persisted_pipeline_output() -> None:
     assert result["retrieval_available"] is False
     assert any(item["rule_code"] == "quality_blocked" for item in predicted)
     assert all(item["rule_code"] != "FABRICATED-EXPECTED" for item in predicted)
+
+
+def test_extraction_success_is_preserved_when_a_later_step_fails(monkeypatch) -> None:
+    class FailingAfterExtractionRunner:
+        def enqueue(self, job):
+            self.job = job
+            return job
+
+        def run_next(self):
+            return self.job.model_copy(
+                update={
+                    "state": JobState.FAILED,
+                    "completed_steps": (AnalysisStep.VALIDATE, AnalysisStep.EXTRACT),
+                    "failed_step": AnalysisStep.RULES,
+                    "error_code": "rules_failed",
+                }
+            )
+
+    runner = FailingAfterExtractionRunner()
+    monkeypatch.setattr(
+        production_module,
+        "create_analysis_worker",
+        lambda database, artifacts: SimpleNamespace(runner=runner),
+    )
+
+    result = ProductionSampleEvaluator()(_sample())
+
+    assert result["terminal_state"] == "failed"
+    assert result["extraction_success"] is True
 
 
 def test_cli_reports_real_failure_and_execution_evidence(tmp_path: Path, monkeypatch) -> None:

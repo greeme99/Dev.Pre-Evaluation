@@ -23,7 +23,8 @@ from dev_pre_review.storage.paths import (
 LOCAL_HOST = "127.0.0.1"
 LOCAL_PORT = 17841
 MAX_RESTORE_REQUEST_BYTES = 101 * 1024 * 1024
-RESTORE_PATHS = frozenset({"/api/restores/preview", "/api/restores/commit"})
+MAX_EXCEL_REQUEST_BYTES = 101 * 1024 * 1024
+MAX_DRAWING_REQUEST_BYTES = 201 * 1024 * 1024
 
 _GLOBAL_DB: Database | None = None
 
@@ -32,19 +33,15 @@ class _RequestBodyTooLarge(Exception):
     pass
 
 
-class RestoreBodyLimitMiddleware:
-    """Reject oversized restore requests before multipart parsing writes temporary data."""
+class RequestBodyLimitMiddleware:
+    """Reject oversized uploads before multipart parsing writes temporary data."""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
-        self.max_bytes = max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if (
-            scope["type"] != "http"
-            or scope.get("method") != "POST"
-            or scope.get("path") not in RESTORE_PATHS
-        ):
+        max_bytes = _request_body_limit(scope)
+        if max_bytes is None:
             await self.app(scope, receive, send)
             return
 
@@ -52,7 +49,7 @@ class RestoreBodyLimitMiddleware:
         content_length = headers.get(b"content-length")
         if content_length is not None:
             try:
-                if int(content_length) > self.max_bytes:
+                if int(content_length) > max_bytes:
                     await self._reject(scope, receive, send)
                     return
             except ValueError:
@@ -65,7 +62,7 @@ class RestoreBodyLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > max_bytes:
                     raise _RequestBodyTooLarge
             return message
 
@@ -80,6 +77,21 @@ class RestoreBodyLimitMiddleware:
             content={"detail": {"code": "request_body_too_large"}},
         )
         await response(scope, receive, send)
+
+
+def _request_body_limit(scope: Scope) -> int | None:
+    if scope["type"] != "http" or scope.get("method") != "POST":
+        return None
+    path = scope.get("path", "")
+    if path in {"/api/restores/preview", "/api/restores/commit"}:
+        return MAX_RESTORE_REQUEST_BYTES
+    if path == "/api/knowledge/imports/preview":
+        return MAX_EXCEL_REQUEST_BYTES
+    if path == "/api/drawings/validate" or (
+        path.startswith("/api/projects/") and path.endswith("/drawings")
+    ):
+        return MAX_DRAWING_REQUEST_BYTES
+    return None
 
 
 def get_database() -> Database:
@@ -120,7 +132,7 @@ def create_app() -> FastAPI:
         TrustedHostMiddleware,
         allowed_hosts=["127.0.0.1", "localhost", "testserver"],
     )
-    app.add_middleware(RestoreBodyLimitMiddleware, max_bytes=MAX_RESTORE_REQUEST_BYTES)
+    app.add_middleware(RequestBodyLimitMiddleware)
 
     @app.middleware("http")
     async def protect_local_mutations(
