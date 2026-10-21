@@ -1,27 +1,19 @@
 """CLI entrypoint for running golden set evaluation and quality gate verification."""
 
 import argparse
+import hashlib
+import os
+import platform
 import sys
 from pathlib import Path
-from typing import Any
 
+from dev_pre_review.evaluation.production import ProductionSampleEvaluator
+from dev_pre_review.evaluation.report import EvaluationEvidence
 from dev_pre_review.evaluation.runner import (
     EvaluationDatasetSplit,
     EvaluationManifest,
     EvaluationRunner,
-    GoldenSample,
 )
-
-
-def _default_evaluator(sample: GoldenSample) -> dict[str, Any]:
-    """Default deterministic evaluation handler for golden set verification."""
-    # When real pipeline is integrated, runs AnalysisPipeline on sample.file_path
-    return {
-        "predicted_findings": sample.expected_findings,
-        "retrieval_ranks": [1] * len(sample.expected_evidence_queries),
-        "extraction_success": True,
-        "latency_ms": 150.0,
-    }
 
 
 def main() -> int:
@@ -66,7 +58,17 @@ def main() -> int:
 
     runner = EvaluationRunner(manifest=manifest)
     split_enum = EvaluationDatasetSplit(args.split)
-    report = runner.evaluate(split=split_enum, eval_fn=_default_evaluator)
+    evaluator = ProductionSampleEvaluator()
+    evidence = EvaluationEvidence(
+        build_id=os.environ.get("DEV_PRE_REVIEW_BUILD_ID")
+        or os.environ.get("GITHUB_SHA")
+        or "local-unverified",
+        environment=f"{platform.platform()}; Python {platform.python_version()}",
+        evaluator_id=evaluator.evaluator_id,
+        evaluator_capabilities=evaluator.capabilities,
+        manifest_sha256=hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
+    )
+    report = runner.evaluate(split=split_enum, eval_fn=evaluator, evidence=evidence)
 
     formatted_output = report.to_markdown() if args.format == "markdown" else report.to_json()
 

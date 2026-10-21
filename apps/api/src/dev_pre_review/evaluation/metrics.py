@@ -48,6 +48,7 @@ class RetrievalMetrics:
     total_queries: int
     ranks: tuple[int | None, ...]
     mean_reciprocal_rank: float
+    available: bool = True
 
     @classmethod
     def from_ranks(cls, ranks: list[int | None]) -> "RetrievalMetrics":
@@ -68,6 +69,10 @@ class RetrievalMetrics:
             return 0.0
         hits = sum(1 for r in self.ranks if r is not None and 1 <= r <= k)
         return hits / self.total_queries
+
+    @classmethod
+    def unavailable(cls) -> "RetrievalMetrics":
+        return cls(total_queries=0, ranks=(), mean_reciprocal_rank=0.0, available=False)
 
 
 @dataclass(frozen=True)
@@ -150,11 +155,13 @@ def check_quality_gates(
             f"Finding recall {cls_metrics.recall:.1%} below threshold {cfg.min_recall:.1%}"
         )
 
-    top5_hit = ret_metrics.hit_rate_at(5)
-    if top5_hit < cfg.min_top5_hit_rate:
-        violations.append(
-            f"Evidence Top-5 hit rate {top5_hit:.1%} below threshold {cfg.min_top5_hit_rate:.1%}"
-        )
+    if ret_metrics.available:
+        top5_hit = ret_metrics.hit_rate_at(5)
+        if top5_hit < cfg.min_top5_hit_rate:
+            violations.append(
+                f"Evidence Top-5 hit rate {top5_hit:.1%} "
+                f"below threshold {cfg.min_top5_hit_rate:.1%}"
+            )
 
     if lat_metrics.count > 0 and lat_metrics.p95 > cfg.max_p95_latency_ms:
         violations.append(

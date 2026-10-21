@@ -124,3 +124,30 @@ def test_runner_execution_and_report_generation(sample_manifest_file: Path) -> N
     data = json.loads(report.to_json())
     assert data["passed"] is True
     assert "metrics" in data
+
+
+def test_report_preserves_per_sample_failure_evidence(sample_manifest_file: Path) -> None:
+    manifest = EvaluationManifest.from_file(sample_manifest_file)
+
+    report = EvaluationRunner(manifest=manifest).evaluate(
+        split=EvaluationDatasetSplit.FINAL,
+        eval_fn=lambda _sample: {
+            "predicted_findings": [],
+            "retrieval_ranks": [],
+            "retrieval_available": True,
+            "extraction_success": False,
+            "latency_ms": 42.0,
+            "terminal_state": "failed",
+            "error_code": "drawing_parse_failed",
+        },
+    )
+
+    sample = json.loads(report.to_json())["samples"][0]
+    assert sample == {
+        "sample_id": "sample-002",
+        "terminal_state": "failed",
+        "error_code": "drawing_parse_failed",
+        "extraction_success": False,
+        "latency_ms": 42.0,
+    }
+    assert "drawing_parse_failed" in report.to_markdown()

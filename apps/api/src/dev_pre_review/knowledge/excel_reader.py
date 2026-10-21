@@ -31,7 +31,7 @@ class InvalidExcelError(ExcelReaderError):
 
 
 MAX_ARCHIVE_ENTRIES = 10_000
-MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+MAX_UNCOMPRESSED_BYTES = 256 * 1024 * 1024
 MAX_MEMBER_BYTES = 128 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 200
 RATIO_CHECK_MIN_BYTES = 1024 * 1024
@@ -183,18 +183,22 @@ class ExcelReader:
             raise InvalidExcelError("Excel archive contains too many entries")
 
         total_size = 0
+        total_compressed_size = 0
         for member in members:
             if member.flag_bits & 0x1:
                 raise InvalidExcelError("Encrypted Excel archive members are not supported")
             if member.file_size > MAX_MEMBER_BYTES:
                 raise InvalidExcelError("Excel archive member exceeds uncompressed size limit")
             total_size += member.file_size
+            total_compressed_size += member.compress_size
             if total_size > MAX_UNCOMPRESSED_BYTES:
                 raise InvalidExcelError("Excel archive exceeds total uncompressed size limit")
             if member.file_size >= RATIO_CHECK_MIN_BYTES:
                 ratio = member.file_size / max(member.compress_size, 1)
                 if ratio > MAX_COMPRESSION_RATIO:
                     raise InvalidExcelError("Excel archive member compression ratio is unsafe")
+        if total_size / max(total_compressed_size, 1) > MAX_COMPRESSION_RATIO:
+            raise InvalidExcelError("Excel archive total compression ratio is unsafe")
 
     def _resolve_anchor_cell(self, img: Any) -> str:
         anchor = getattr(img, "anchor", None)

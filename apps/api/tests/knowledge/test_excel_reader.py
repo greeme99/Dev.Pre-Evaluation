@@ -74,3 +74,17 @@ def test_rejects_high_expansion_excel_archive(
 
     with pytest.raises(InvalidExcelError, match="compression ratio"):
         reader.preview(unsafe)
+
+
+def test_rejects_aggregate_expansion_from_many_small_archive_members(
+    reader: ExcelReader, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    unsafe = tmp_path / "aggregate-expansion.xlsx"
+    with ZipFile(unsafe, "w", compression=ZIP_DEFLATED) as archive:
+        for index in range(20):
+            archive.writestr(f"xl/worksheets/sheet{index}.xml", "A" * 10_000)
+    monkeypatch.setattr("dev_pre_review.knowledge.excel_reader.MAX_COMPRESSION_RATIO", 2)
+    monkeypatch.setattr("dev_pre_review.knowledge.excel_reader.RATIO_CHECK_MIN_BYTES", 1_000_000)
+
+    with pytest.raises(InvalidExcelError, match="total compression ratio"):
+        reader.preview(unsafe)

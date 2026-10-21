@@ -5,6 +5,8 @@ References: TC-101, TC-102, NFR-001, NFR-002, plan.md.
 
 import hashlib
 import json
+import os
+import platform
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
@@ -24,8 +26,10 @@ from dev_pre_review.evaluation.metrics import (
     check_quality_gates,
 )
 from dev_pre_review.evaluation.report import (
+    EvaluationEvidence,
     EvaluationReport,
     EvaluationReportMetrics,
+    SampleEvaluationEvidence,
 )
 
 
@@ -82,6 +86,7 @@ class EvaluationRunner:
         self,
         split: EvaluationDatasetSplit,
         eval_fn: Callable[[GoldenSample], dict[str, Any]],
+        evidence: EvaluationEvidence | None = None,
     ) -> EvaluationReport:
         """Evaluates all samples for a specific dataset split."""
         samples = self.manifest.get_samples(split)
@@ -95,6 +100,8 @@ class EvaluationRunner:
         total_extractions = len(samples)
         successful_extractions = 0
         latencies: list[float] = []
+        unavailable_retrieval_queries = 0
+        sample_evidence: list[SampleEvaluationEvidence] = []
 
         for sample in samples:
             res = eval_fn(sample)
@@ -105,9 +112,30 @@ class EvaluationRunner:
             latency = res.get("latency_ms")
             if isinstance(latency, int | float):
                 latencies.append(float(latency))
+            else:
+                latency = 0.0
 
-            ranks = res.get("retrieval_ranks", [])
-            all_ranks.extend(ranks)
+            extraction_success = bool(res.get("extraction_success", False))
+            sample_evidence.append(
+                SampleEvaluationEvidence(
+                    sample_id=sample.id,
+                    terminal_state=str(
+                        res.get(
+                            "terminal_state",
+                            "completed" if extraction_success else "failed",
+                        )
+                    ),
+                    error_code=str(res["error_code"]) if res.get("error_code") else None,
+                    extraction_success=extraction_success,
+                    latency_ms=float(latency),
+                )
+            )
+
+            if sample.expected_evidence_queries and not res.get("retrieval_available", True):
+                unavailable_retrieval_queries += len(sample.expected_evidence_queries)
+            else:
+                ranks = res.get("retrieval_ranks", [])
+                all_ranks.extend(ranks)
 
             predicted = res.get("predicted_findings", [])
             expected = sample.expected_findings
@@ -130,7 +158,11 @@ class EvaluationRunner:
                 tn += 1
 
         cls_metrics = ClassificationMetrics.from_counts(tp=tp, fp=fp, fn=fn, tn=tn)
-        ret_metrics = RetrievalMetrics.from_ranks(all_ranks)
+        ret_metrics = (
+            RetrievalMetrics.unavailable()
+            if unavailable_retrieval_queries
+            else RetrievalMetrics.from_ranks(all_ranks)
+        )
         ext_metrics = ExtractionMetrics(
             total_elements=total_extractions,
             successful_elements=successful_extractions,
@@ -144,6 +176,22 @@ class EvaluationRunner:
             lat_metrics=lat_metrics,
             config=self.config,
         )
+        if unavailable_retrieval_queries:
+            violations.append(
+                "Evidence retrieval evaluator unavailable for "
+                f"{unavailable_retrieval_queries} golden queries"
+            )
+            passed = False
+
+        report_evidence = evidence or EvaluationEvidence(
+            build_id=os.environ.get("DEV_PRE_REVIEW_BUILD_ID")
+            or os.environ.get("GITHUB_SHA")
+            or "local-unverified",
+            environment=f"{platform.platform()}; Python {platform.python_version()}",
+            evaluator_id=getattr(eval_fn, "evaluator_id", "injected-evaluator"),
+            evaluator_capabilities=tuple(getattr(eval_fn, "capabilities", ("unspecified",))),
+            manifest_sha256="unavailable",
+        )
 
         return EvaluationReport(
             manifest_version=self.manifest.manifest_version,
@@ -151,6 +199,8 @@ class EvaluationRunner:
             app_version=__version__,
             split=split.value,
             created_at=utc_now().isoformat(),
+            evidence=report_evidence,
+            samples=tuple(sample_evidence),
             metrics=EvaluationReportMetrics(
                 classification=cls_metrics,
                 retrieval=ret_metrics,

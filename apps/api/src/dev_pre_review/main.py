@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from dev_pre_review import __version__
 from dev_pre_review.analysis.runtime import create_analysis_worker
@@ -21,8 +22,64 @@ from dev_pre_review.storage.paths import (
 
 LOCAL_HOST = "127.0.0.1"
 LOCAL_PORT = 17841
+MAX_RESTORE_REQUEST_BYTES = 101 * 1024 * 1024
+RESTORE_PATHS = frozenset({"/api/restores/preview", "/api/restores/commit"})
 
 _GLOBAL_DB: Database | None = None
+
+
+class _RequestBodyTooLarge(Exception):
+    pass
+
+
+class RestoreBodyLimitMiddleware:
+    """Reject oversized restore requests before multipart parsing writes temporary data."""
+
+    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+        self.app = app
+        self.max_bytes = max_bytes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if (
+            scope["type"] != "http"
+            or scope.get("method") != "POST"
+            or scope.get("path") not in RESTORE_PATHS
+        ):
+            await self.app(scope, receive, send)
+            return
+
+        headers = dict(scope.get("headers", []))
+        content_length = headers.get(b"content-length")
+        if content_length is not None:
+            try:
+                if int(content_length) > self.max_bytes:
+                    await self._reject(scope, receive, send)
+                    return
+            except ValueError:
+                pass
+
+        received = 0
+
+        async def receive_limited() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.max_bytes:
+                    raise _RequestBodyTooLarge
+            return message
+
+        try:
+            await self.app(scope, receive_limited, send)
+        except _RequestBodyTooLarge:
+            await self._reject(scope, receive, send)
+
+    async def _reject(self, scope: Scope, receive: Receive, send: Send) -> None:
+        response = JSONResponse(
+            status_code=413,
+            content={"detail": {"code": "request_body_too_large"}},
+        )
+        await response(scope, receive, send)
 
 
 def get_database() -> Database:
@@ -63,6 +120,7 @@ def create_app() -> FastAPI:
         TrustedHostMiddleware,
         allowed_hosts=["127.0.0.1", "localhost", "testserver"],
     )
+    app.add_middleware(RestoreBodyLimitMiddleware, max_bytes=MAX_RESTORE_REQUEST_BYTES)
 
     @app.middleware("http")
     async def protect_local_mutations(
