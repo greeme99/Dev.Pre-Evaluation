@@ -25,7 +25,7 @@ from dev_pre_review.domain.models import (
 )
 from dev_pre_review.drawings.contracts import DrawingDocument, TextRegion
 from dev_pre_review.models.generation import LocalSuggestionProvider
-from dev_pre_review.rules.engine import RuleEvaluator
+from dev_pre_review.rules.engine import RuleEvaluationResult, RuleEvaluator
 from dev_pre_review.storage.database import Database
 from dev_pre_review.storage.repositories import (
     DrawingRepository,
@@ -212,4 +212,51 @@ def test_pipeline_completes_with_sqlite_job_repository(tmp_path) -> None:
 
     assert result.state is JobState.COMPLETED
     assert len(job_repo.get(job_id).completed_steps) == 6
+    database.dispose()
+
+
+def test_pipeline_honors_cancel_requested_during_step_with_sqlite(tmp_path) -> None:
+    database = Database.from_path(tmp_path / "pipeline-cancel.db")
+    database.upgrade()
+    project = ProjectRepository(database.sessions).add(
+        ReviewProject(name="Cancel during step", created_at=utc_now())
+    )
+    drawing = DrawingRepository(database.sessions).add(
+        DrawingArtifact(
+            project_id=project.id,
+            sha256="b" * 64,
+            drawing_type=DrawingType.PDF,
+            source_name="cancel.pdf",
+            parser_version="test",
+            created_at=utc_now(),
+        )
+    )
+    job_repo = JobRepository(database.sessions)
+    job = job_repo.add(make_test_job(uuid4(), project.id, drawing.id))
+    document = DrawingDocument(
+        drawing_id=drawing.id,
+        drawing_type=DrawingType.PDF,
+        file_name="cancel.pdf",
+        file_sha256="b" * 64,
+        page_count=1,
+        regions=[],
+    )
+
+    class CancellingRuleEvaluator(RuleEvaluator):
+        def evaluate(self, *args, **kwargs) -> RuleEvaluationResult:
+            current = job_repo.get(job.id)
+            job_repo.update(current.request_cancel())
+            return RuleEvaluationResult(findings=[])
+
+    result = AnalysisPipeline(
+        job_repo=job_repo,
+        rule_evaluator=CancellingRuleEvaluator(),
+        fusion_engine=FindingFusion(),
+        suggestion_provider=LocalSuggestionProvider(),
+    ).run(job.id, PipelineContext(document=document))
+
+    persisted = job_repo.get(job.id)
+    assert result.state is JobState.CANCELLED
+    assert persisted.state is JobState.CANCELLED
+    assert persisted.completed_steps == (AnalysisStep.VALIDATE, AnalysisStep.EXTRACT)
     database.dispose()

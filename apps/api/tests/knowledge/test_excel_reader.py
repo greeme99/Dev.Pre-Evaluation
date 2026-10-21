@@ -1,6 +1,7 @@
 """Tests for Excel reader: cell extraction, image anchors, and invalid file rejection."""
 
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -31,6 +32,17 @@ def test_extracts_images_from_merged_and_offset_anchors(reader: ExcelReader) -> 
     first_image = preview.images[0]
     assert first_image.anchor_cell == "D7"
     assert "용접" in first_image.context_text
+
+
+def test_image_ids_are_stable_when_server_reparses_preview(reader: ExcelReader) -> None:
+    preview_id = uuid4()
+
+    first = reader.preview(fixture_path("merged-anchor.xlsx"), preview_id=preview_id)
+    reparsed = reader.preview(fixture_path("merged-anchor.xlsx"), preview_id=preview_id)
+
+    assert [image.image_id for image in first.images] == [
+        image.image_id for image in reparsed.images
+    ]
 
 
 def test_reads_standard_excel_sheet_and_columns(reader: ExcelReader) -> None:

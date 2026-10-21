@@ -99,8 +99,22 @@ class AnalysisPipeline:
             elif step is AnalysisStep.EXPORT_READY:
                 pass
 
-            # Advance checkpoint
-            job = job.complete_step(step)
+            # Refresh before the optimistic update because a cancel request may
+            # have advanced the persisted version while the step was running.
+            current_job = self.job_repo.get(job_id)
+            if current_job.state is JobState.CANCELLING:
+                cancelled_job = current_job.confirm_cancel()
+                cancelled_job = self.job_repo.update(cancelled_job)
+                return AnalysisResult(
+                    job_id=job_id,
+                    state=JobState.CANCELLED,
+                    findings=all_findings or rule_findings,
+                    suggestions=suggestions,
+                    completed_steps=list(cancelled_job.completed_steps),
+                )
+
+            # Advance checkpoint from the latest persisted version.
+            job = current_job.complete_step(step)
             job = self.job_repo.update(job)
 
             if self.on_step_completed:

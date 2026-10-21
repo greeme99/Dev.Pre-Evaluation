@@ -40,6 +40,7 @@ class ExcelReader:
     ) -> ImportPreview:
         if not path.exists():
             raise InvalidExcelError(f"File not found: {path}")
+        effective_preview_id = preview_id or uuid4()
 
         # Check signature & encryption
         with open(path, "rb") as f:
@@ -105,10 +106,13 @@ class ExcelReader:
 
                 img_data = img.ref.getvalue() if hasattr(img, "ref") else b""
                 data_hash = hashlib.sha256(img_data).hexdigest() if img_data else ""
+                stable_suffix = hashlib.sha256(
+                    f"{effective_preview_id}:{sheet_name}:{idx + 1}:{data_hash}".encode()
+                ).hexdigest()[:12]
 
                 images.append(
                     ExtractedImage(
-                        image_id=f"img_{sheet_name}_{idx + 1}_{uuid4().hex[:6]}",
+                        image_id=f"img_{sheet_name}_{idx + 1}_{stable_suffix}",
                         sheet_name=sheet_name,
                         anchor_cell=anchor_cell,
                         context_text=context_text,
@@ -117,7 +121,7 @@ class ExcelReader:
                 )
 
         return ImportPreview(
-            preview_id=preview_id or uuid4(),
+            preview_id=effective_preview_id,
             file_sha256=file_hash,
             file_name=file_name or path.name,
             sheets=sheets,
